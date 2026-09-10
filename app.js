@@ -1,16 +1,6 @@
-/* =========================================================
-   SUPABASE CONFIG
-========================================================= */
-
-/*
-    PUT YOUR SUPABASE INFORMATION HERE.
-
-    NEVER put a service_role or secret key here.
-
-    Use:
-    - Project URL
-    - Publishable key / anon key
-*/
+/* ============================================================
+   RESTAURANT PLATFORM
+   ============================================================ */
 
 const SUPABASE_URL =
     "https://qxfoxzcpltocznfykwcf.supabase.co";
@@ -18,57 +8,101 @@ const SUPABASE_URL =
 const SUPABASE_KEY =
     "sb_publishable_4J4JonWx9m1cdF_LclRHww_CexgDjpv";
 
-
 const supabaseClient =
-    supabase.createClient(
+    window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_KEY
     );
 
-
-/* =========================================================
+/* ============================================================
    GLOBAL STATE
-========================================================= */
+   ============================================================ */
 
 let settings = null;
-
-let translations = {};
-
 let categories = [];
-
 let products = [];
-
 let orders = [];
+let reviews = [];
 
-let cart = [];
+let cart = JSON.parse(
+    localStorage.getItem("restaurant_cart") || "[]"
+);
 
-let currentLanguage = "fr";
+let wishlist = JSON.parse(
+    localStorage.getItem("restaurant_wishlist") || "[]"
+);
+
+let currentLanguage =
+    localStorage.getItem("restaurant_language") || "fr";
 
 let selectedCategory = "all";
 
-let currentUser = null;
+let customerLocation = {
+    latitude: null,
+    longitude: null
+};
 
+let lastSuccessfulOrder = null;
 
-/* =========================================================
+let orderChannel = null;
+
+/* ============================================================
+   TRANSLATIONS
+   ============================================================ */
+
+const UI = {
+
+    fr: {
+        navHome: "Accueil",
+        navMenu: "Menu",
+        navContact: "Contact",
+        cart: "Panier",
+        reviewsTitle: "Ce que disent nos clients",
+        leaveReview: "Laisser un avis",
+        contactTitle: "Contact",
+        hours: "Horaires",
+        followUs: "Nous suivre",
+        search: "Rechercher..."
+    },
+
+    en: {
+        navHome: "Home",
+        navMenu: "Menu",
+        navContact: "Contact",
+        cart: "Cart",
+        reviewsTitle: "What our customers say",
+        leaveReview: "Leave a review",
+        contactTitle: "Contact",
+        hours: "Opening hours",
+        followUs: "Follow us",
+        search: "Search..."
+    },
+
+    ar: {
+        navHome: "الرئيسية",
+        navMenu: "القائمة",
+        navContact: "اتصل بنا",
+        cart: "السلة",
+        reviewsTitle: "آراء عملائنا",
+        leaveReview: "أضف تقييماً",
+        contactTitle: "اتصل بنا",
+        hours: "أوقات العمل",
+        followUs: "تابعنا",
+        search: "بحث..."
+    }
+
+};
+
+/* ============================================================
    HELPERS
-========================================================= */
+   ============================================================ */
 
-function $(id) {
-
-    return document.getElementById(id);
-
-}
-
+const $ = id =>
+    document.getElementById(id);
 
 function escapeHTML(value) {
 
-    if (value === null || value === undefined) {
-
-        return "";
-
-    }
-
-    return String(value)
+    return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -77,3593 +111,5063 @@ function escapeHTML(value) {
 
 }
 
+function localized(value) {
 
-function t(key) {
+    if (!value) return "";
+
+    if (typeof value === "string") {
+        return value;
+    }
 
     return (
-        translations[currentLanguage]?.[key]
+        value[currentLanguage]
         ||
-        translations.fr?.[key]
+        value.fr
         ||
-        key
+        value.en
+        ||
+        value.ar
+        ||
+        Object.values(value)[0]
+        ||
+        ""
     );
 
 }
 
+function currency(value) {
 
-function productName(product) {
-
-    if (currentLanguage === "ar") {
-
-        return product.name_ar;
-
-    }
-
-    if (currentLanguage === "en") {
-
-        return product.name_en;
-
-    }
-
-    return product.name_fr;
+    return `${Number(value || 0).toFixed(2)} ${settings?.currency || "MAD"}`;
 
 }
 
-
-function productDescription(product) {
-
-    if (currentLanguage === "ar") {
-
-        return product.description_ar;
-
-    }
-
-    if (currentLanguage === "en") {
-
-        return product.description_en;
-
-    }
-
-    return product.description_fr;
-
-}
-
-
-function categoryName(category) {
-
-    if (currentLanguage === "ar") {
-
-        return category.name_ar;
-
-    }
-
-    if (currentLanguage === "en") {
-
-        return category.name_en;
-
-    }
-
-    return category.name_fr;
-
-}
-
-
-function showToast(message) {
-
-    const toast = $("toast");
-
-    toast.textContent = message;
-
-    toast.classList.add("show");
-
-    setTimeout(() => {
-
-        toast.classList.remove("show");
-
-    }, 3000);
-
-}
-
-
-/* =========================================================
-   LOAD SETTINGS
-========================================================= */
-
-async function loadSettings() {
-
-    const { data, error } =
-
-        await supabaseClient
-
-            .from("site_settings")
-
-            .select("*")
-
-            .eq("id", 1)
-
-            .single();
-
-
-    if (error) {
-
-        console.error(error);
-
-        return;
-
-    }
-
-
-    settings = data;
-
-    currentLanguage =
-        settings.default_language || "fr";
-
-
-    applySettings();
-
-}
-
-
-/* =========================================================
-   APPLY SETTINGS
-========================================================= */
-
-function applySettings() {
-
-    if (!settings) return;
-
-
-    document.title =
-        settings.restaurant_name;
-
-
-    $("brand-name").textContent =
-        settings.restaurant_name;
-
-
-    $("brand-logo").src =
-        settings.logo_url || "";
-
-
-    $("hero-logo").src =
-        settings.logo_url || "";
-
-
-    $("hero-title").textContent =
-        translations[currentLanguage]?.hero_title
-        ||
-        settings.restaurant_name;
-
-
-    $("hero-description").textContent =
-        translations[currentLanguage]?.hero_description
-        ||
-        "";
-
-
-    $("restaurant-address").textContent =
-        settings.address || "";
-
-
-    $("phone-link").href =
-        settings.phone
-            ? `tel:${settings.phone}`
-            : "#";
-
-
-    $("whatsapp-link").href =
-        settings.whatsapp
-            ? `https://wa.me/${cleanPhone(settings.whatsapp)}`
-            : "#";
-
-
-    $("maps-link").href =
-        settings.maps_url || "#";
-
-
-    document.documentElement.style
-        .setProperty(
-            "--primary",
-            settings.primary_color
-        );
-
-
-    document.documentElement.style
-        .setProperty(
-            "--secondary",
-            settings.secondary_color
-        );
-
-
-    document.documentElement.style
-        .setProperty(
-            "--accent",
-            settings.accent_color
-        );
-
-
-    document.documentElement.style
-        .setProperty(
-            "--radius",
-            `${settings.border_radius}px`
-        );
-
-
-    document.documentElement.style
-        .setProperty(
-            "--font",
-            `${settings.font_family}, Arial, sans-serif`
-        );
-
-
-    $("hero-overlay").style.background =
-        `rgba(0,0,0,${
-            Number(settings.hero_overlay || 55) / 100
-        })`;
-
-
-    const heroImage =
-        $("hero-image");
-
-
-    heroImage.style.backgroundImage =
-        settings.hero_image_url
-            ? `url("${settings.hero_image_url}")`
-            : "none";
-
-
-    const heroVideo =
-        $("hero-video");
-
-
-    if (settings.hero_video_url) {
-
-        heroVideo.src =
-            settings.hero_video_url;
-
-        heroVideo.style.display =
-            "block";
-
-    } else {
-
-        heroVideo.removeAttribute("src");
-
-        heroVideo.style.display =
-            "none";
-
-    }
-
+function productPrice(product) {
 
     if (
-        settings.theme_mode === "light"
+        product.sale_price !== null &&
+        Number(product.sale_price) > 0 &&
+        Number(product.sale_price) < Number(product.price)
     ) {
-
-        document.body.classList.add(
-            "light-theme"
-        );
-
-    } else {
-
-        document.body.classList.remove(
-            "light-theme"
-        );
-
+        return Number(product.sale_price);
     }
 
-
-    $("phone-link").style.display =
-        settings.show_phone
-            ? "inline-flex"
-            : "none";
-
-
-    $("whatsapp-link").style.display =
-        settings.show_whatsapp
-            ? "inline-flex"
-            : "none";
-
-
-    $("maps-link").style.display =
-        settings.show_maps
-            ? "inline-flex"
-            : "none";
-
-
-    renderSocials();
+    return Number(product.price || 0);
 
 }
 
+function showToast(message, type = "") {
 
-/* =========================================================
-   LOAD TRANSLATIONS
-========================================================= */
+    const box = document.createElement("div");
 
-async function loadTranslations() {
+    box.className =
+        `toast ${type}`;
 
-    const { data, error } =
+    box.textContent = message;
 
-        await supabaseClient
+    $("toastContainer").appendChild(box);
 
-            .from("translations")
+    setTimeout(() => {
+        box.remove();
+    }, 3500);
 
-            .select("*");
+}
 
+function openModal(id) {
 
-    if (error) {
+    const modal = $(id);
 
-        console.error(error);
+    if (!modal) return;
 
-        return;
+    modal.classList.add("open");
 
+    document.body.classList.add("modal-open");
+
+}
+
+function closeModal(id) {
+
+    const modal = $(id);
+
+    if (!modal) return;
+
+    modal.classList.remove("open");
+
+    if (
+        !document.querySelector(".modal.open")
+    ) {
+        document.body.classList.remove("modal-open");
     }
 
+}
 
-    translations = {};
+function scrollToTop() {
 
-
-    data.forEach(row => {
-
-        if (!translations[row.language]) {
-
-            translations[row.language] = {};
-
-        }
-
-        translations[row.language][row.key] =
-            row.value;
-
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
     });
 
-
-    applyLanguage();
-
 }
 
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
 
-/* =========================================================
-   APPLY LANGUAGE
-========================================================= */
+document.addEventListener(
+    "DOMContentLoaded",
+    async () => {
 
-function applyLanguage() {
+        $("footerYear").textContent =
+            new Date().getFullYear();
 
-    document.documentElement.lang =
-        currentLanguage;
+        $("languageSelect").value =
+            currentLanguage;
 
+        applyTranslations();
 
-    document.body.dir =
-        currentLanguage === "ar"
-            ? "rtl"
-            : "ltr";
+        await loadEverything();
 
+        setupRealtime();
 
-    document
-        .querySelectorAll("[data-i18n]")
-        .forEach(element => {
-
-            const key =
-                element.dataset.i18n;
-
-            element.textContent =
-                t(key);
-
-        });
-
-
-    renderCategories();
-
-    renderProducts();
-
-    renderCart();
-
-    applySettings();
-
-}
-
-
-/* =========================================================
-   CHANGE LANGUAGE
-========================================================= */
-
-async function changeLanguage(language) {
-
-    currentLanguage =
-        language;
-
-    localStorage.setItem(
-        "restaurant_language",
-        language
-    );
-
-
-    applyLanguage();
-
-    $("language-menu")
-        .classList.add("hidden");
-
-}
-
-
-/* =========================================================
-   LOAD CATEGORIES
-========================================================= */
-
-async function loadCategories() {
-
-    const { data, error } =
-
-        await supabaseClient
-
-            .from("categories")
-
-            .select("*")
-
-            .eq("visible", true)
-
-            .order("sort_order", {
-                ascending: true
-            });
-
-
-    if (error) {
-
-        console.error(error);
-
-        return;
+        await checkAdminSession();
 
     }
+);
 
+/* ============================================================
+   LOAD DATA
+   ============================================================ */
 
-    categories = data || [];
+async function loadEverything() {
 
-    renderCategories();
+    try {
 
-}
+        const [
+            settingsResult,
+            categoriesResult,
+            productsResult,
+            reviewsResult
+        ] = await Promise.all([
 
+            supabaseClient
+                .from("site_settings")
+                .select("*")
+                .eq("id",1)
+                .single(),
 
-/* =========================================================
-   RENDER CATEGORIES
-========================================================= */
+            supabaseClient
+                .from("categories")
+                .select("*")
+                .order("sort_order",{ascending:true}),
 
-function renderCategories() {
+            supabaseClient
+                .from("products")
+                .select("*")
+                .order("sort_order",{ascending:true}),
 
-    const container =
-        $("category-list");
+            supabaseClient
+                .from("reviews")
+                .select("*")
+                .eq("approved",true)
+                .order("created_at",{ascending:false})
 
+        ]);
 
-    container.innerHTML = "";
+        if (settingsResult.error) {
+            throw settingsResult.error;
+        }
 
+        settings =
+            settingsResult.data;
 
-    const allButton =
-        document.createElement("button");
+        categories =
+            categoriesResult.data || [];
 
+        products =
+            productsResult.data || [];
 
-    allButton.textContent =
-        currentLanguage === "fr"
-            ? "Tout"
-            : currentLanguage === "ar"
-            ? "الكل"
-            : "All";
+        reviews =
+            reviewsResult.data || [];
 
-
-    allButton.className =
-        selectedCategory === "all"
-            ? "active"
-            : "";
-
-
-    allButton.onclick = () => {
-
-        selectedCategory = "all";
+        applySettings();
 
         renderCategories();
 
         renderProducts();
 
-    };
+        renderReviews();
 
+        updateCartUI();
 
-    container.appendChild(
-        allButton
-    );
+        updateWishlistUI();
 
+        renderPaymentOptions();
 
-    categories.forEach(category => {
-
-        const button =
-            document.createElement("button");
-
-
-        button.textContent =
-            categoryName(category);
-
-
-        button.className =
-            selectedCategory === category.id
-                ? "active"
-                : "";
-
-
-        button.onclick = () => {
-
-            selectedCategory =
-                category.id;
-
-            renderCategories();
-
-            renderProducts();
-
-        };
-
-
-        container.appendChild(button);
-
-    });
-
-}
-
-
-/* =========================================================
-   LOAD PRODUCTS
-========================================================= */
-
-async function loadProducts() {
-
-    const { data, error } =
-
-        await supabaseClient
-
-            .from("products")
-
-            .select("*")
-
-            .eq("visible", true)
-
-            .eq("available", true)
-
-            .order("sort_order", {
-                ascending: true
-            });
-
-
-    if (error) {
+    } catch(error) {
 
         console.error(error);
 
-        return;
+        showToast(
+            "Could not load the restaurant data.",
+            "error"
+        );
 
     }
 
+}
 
-    products = data || [];
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+
+function applySettings() {
+
+    if (!settings) return;
+
+    document.title =
+        settings.restaurant_name ||
+        "Restaurant";
+
+    $("brandName").textContent =
+        settings.restaurant_name ||
+        "Restaurant";
+
+    $("footerRestaurantName").textContent =
+        settings.restaurant_name ||
+        "Restaurant";
+
+    $("footerText").textContent =
+        settings.footer_text || "";
+
+    if (settings.logo_url) {
+
+        $("brandLogo").src =
+            settings.logo_url;
+
+        $("brandLogo").style.display =
+            "block";
+
+    } else {
+
+        $("brandLogo").style.display =
+            "none";
+
+    }
+
+    if (settings.favicon_url) {
+
+        $("favicon").href =
+            settings.favicon_url;
+
+    }
+
+    document.documentElement.style
+        .setProperty(
+            "--primary",
+            settings.primary_color || "#e85d04"
+        );
+
+    document.documentElement.style
+        .setProperty(
+            "--secondary",
+            settings.secondary_color || "#ffba08"
+        );
+
+    document.documentElement.style
+        .setProperty(
+            "--background",
+            settings.background_color || "#fffaf4"
+        );
+
+    document.body.style.fontFamily =
+        settings.font_family ||
+        "Inter";
+
+    $("heroEyebrow").textContent =
+        localized(settings.hero_eyebrow);
+
+    $("heroTitle").textContent =
+        localized(settings.hero_title);
+
+    $("heroDescription").textContent =
+        localized(settings.hero_description);
+
+    $("heroButton").textContent =
+        localized(settings.hero_button);
+
+    $("productsTitle").textContent =
+        localized(settings.products_title);
+
+    const announcement =
+        localized(settings.announcement);
+
+    if (announcement.trim()) {
+
+        $("announcementText").textContent =
+            announcement;
+
+        $("announcementSection")
+            .style.display = "block";
+
+    } else {
+
+        $("announcementSection")
+            .style.display = "none";
+
+    }
+
+    if (
+        settings.background_image_url
+    ) {
+
+        $("heroBackground").style
+            .backgroundImage =
+            `url("${settings.background_image_url}")`;
+
+    }
+
+    if (settings.phone) {
+
+        $("contactPhone").textContent =
+            settings.phone;
+
+        $("contactPhone").href =
+            `tel:${settings.phone}`;
+
+    } else {
+
+        $("contactPhone").parentElement
+            .style.display = "none";
+
+    }
+
+    if (settings.email) {
+
+        $("contactEmail").textContent =
+            settings.email;
+
+        $("contactEmail").href =
+            `mailto:${settings.email}`;
+
+    } else {
+
+        $("contactEmail").parentElement
+            .style.display = "none";
+
+    }
+
+    $("contactAddress").textContent =
+        [
+            settings.address,
+            settings.city
+        ]
+        .filter(Boolean)
+        .join(", ");
+
+    if (settings.maps_url) {
+
+        $("mapsButton").href =
+            settings.maps_url;
+
+        $("mapsButton").style.display =
+            "inline-block";
+
+    }
+
+    renderOpeningHours();
+
+    setupSocial(
+        "instagramLink",
+        settings.instagram
+    );
+
+    setupSocial(
+        "facebookLink",
+        settings.facebook
+    );
+
+    setupSocial(
+        "tiktokLink",
+        settings.tiktok
+    );
+
+    $("reviewsSection")
+        .style.display =
+        settings.show_reviews
+            ? ""
+            : "none";
+
+}
+
+function setupSocial(id,url) {
+
+    const element = $(id);
+
+    if (!element) return;
+
+    if (url) {
+
+        element.href = url;
+
+        element.style.display =
+            "inline-block";
+
+    } else {
+
+        element.style.display =
+            "none";
+
+    }
+
+}
+
+function renderOpeningHours() {
+
+    const hours =
+        settings?.opening_hours || {};
+
+    const days = [
+        ["monday","Lundi"],
+        ["tuesday","Mardi"],
+        ["wednesday","Mercredi"],
+        ["thursday","Jeudi"],
+        ["friday","Vendredi"],
+        ["saturday","Samedi"],
+        ["sunday","Dimanche"]
+    ];
+
+    $("openingHours").innerHTML =
+        days.map(([key,label]) => {
+
+            const row =
+                hours[key] || {};
+
+            return `
+                <div class="hours-row">
+                    <strong>${label}</strong>
+                    <span>${escapeHTML(row.open || "—")}</span>
+                    <span>${escapeHTML(row.close || "—")}</span>
+                </div>
+            `;
+
+        }).join("");
+
+}
+
+/* ============================================================
+   LANGUAGE
+   ============================================================ */
+
+function changeLanguage(language) {
+
+    currentLanguage =
+        ["fr","en","ar"].includes(language)
+            ? language
+            : "fr";
+
+    localStorage.setItem(
+        "restaurant_language",
+        currentLanguage
+    );
+
+    $("languageSelect").value =
+        currentLanguage;
+
+    document.documentElement.lang =
+        currentLanguage;
+
+    document.documentElement.dir =
+        currentLanguage === "ar"
+            ? "rtl"
+            : "ltr";
+
+    applyTranslations();
+
+    if (settings) {
+        applySettings();
+    }
+
+    renderCategories();
+    renderProducts();
+    renderReviews();
+    renderCart();
+
+}
+
+function applyTranslations() {
+
+    document.querySelectorAll(
+        "[data-i18n]"
+    ).forEach(element => {
+
+        const key =
+            element.dataset.i18n;
+
+        if (
+            UI[currentLanguage] &&
+            UI[currentLanguage][key]
+        ) {
+
+            element.textContent =
+                UI[currentLanguage][key];
+
+        }
+
+    });
+
+    $("searchInput").placeholder =
+        UI[currentLanguage].search;
+
+}
+
+/* ============================================================
+   CATEGORIES
+   ============================================================ */
+
+function renderCategories() {
+
+    const activeCategories =
+        categories
+            .filter(category => category.active)
+            .sort(
+                (a,b) =>
+                    Number(a.sort_order || 0)
+                    -
+                    Number(b.sort_order || 0)
+            );
+
+    let html = `
+        <button
+            class="category-button ${
+                selectedCategory === "all"
+                    ? "active"
+                    : ""
+            }"
+            onclick="selectCategory('all')"
+        >
+            ${currentLanguage === "ar"
+                ? "الكل"
+                : currentLanguage === "en"
+                    ? "All"
+                    : "Tous"}
+        </button>
+    `;
+
+    html += activeCategories.map(
+        category => `
+
+            <button
+                class="category-button ${
+                    String(selectedCategory) === String(category.id)
+                        ? "active"
+                        : ""
+                }"
+                onclick="selectCategory(${category.id})"
+            >
+                ${escapeHTML(
+                    localized(category.name)
+                )}
+            </button>
+
+        `
+    ).join("");
+
+    $("categoryButtons").innerHTML =
+        html;
+
+}
+
+function selectCategory(id) {
+
+    selectedCategory = id;
+
+    renderCategories();
 
     renderProducts();
 
 }
 
-
-/* =========================================================
-   RENDER PRODUCTS
-========================================================= */
+/* ============================================================
+   PRODUCTS
+   ============================================================ */
 
 function renderProducts() {
 
-    const container =
-        $("product-grid");
+    const search =
+        ($("searchInput")?.value || "")
+        .trim()
+        .toLowerCase();
 
+    let visible =
+        products.filter(
+            product => product.active
+        );
 
-    container.innerHTML = "";
+    if (
+        selectedCategory !== "all"
+    ) {
 
-
-    let visibleProducts =
-        products;
-
-
-    if (selectedCategory !== "all") {
-
-        visibleProducts =
-            products.filter(
+        visible =
+            visible.filter(
                 product =>
-                    product.category_id
-                    === selectedCategory
+                    String(product.category_id)
+                    ===
+                    String(selectedCategory)
             );
 
     }
 
+    if (search) {
 
-    if (visibleProducts.length === 0) {
+        visible =
+            visible.filter(product => {
 
-        container.innerHTML = `
-            <p>
-                ${
-                    currentLanguage === "fr"
-                    ? "Aucun produit disponible."
-                    : currentLanguage === "ar"
-                    ? "لا توجد منتجات متاحة."
-                    : "No products available."
-                }
-            </p>
-        `;
+                const name =
+                    localized(product.name)
+                    .toLowerCase();
+
+                const description =
+                    localized(product.description)
+                    .toLowerCase();
+
+                return (
+                    name.includes(search)
+                    ||
+                    description.includes(search)
+                );
+
+            });
+
+    }
+
+    if (!visible.length) {
+
+        $("productsGrid").innerHTML =
+            "";
+
+        $("emptyProducts")
+            .style.display =
+            "block";
 
         return;
 
     }
 
+    $("emptyProducts")
+        .style.display =
+        "none";
 
-    visibleProducts.forEach(product => {
+    $("productsGrid").innerHTML =
+        visible.map(
+            renderProductCard
+        ).join("");
 
-        const card =
-            document.createElement("article");
+}
 
+function renderProductCard(product) {
 
-        card.className =
-            "product-card";
+    const price =
+        productPrice(product);
 
+    const sale =
+        product.sale_price !== null
+        &&
+        Number(product.sale_price) > 0
+        &&
+        Number(product.sale_price) <
+        Number(product.price);
 
-        const image =
-            product.image_url
-            ||
-            "https://placehold.co/800x600?text=Food";
+    const favorite =
+        wishlist.includes(product.id);
 
+    const soldOut =
+        Number(product.stock) <= 0;
 
-        card.innerHTML = `
+    return `
 
-            <img
-                class="product-image"
-                src="${escapeHTML(image)}"
-                alt="${escapeHTML(
-                    productName(product)
-                )}"
-                loading="lazy"
-            >
+        <article class="product-card">
 
+            <div class="product-image">
 
-            <div class="product-body">
+                ${
+                    product.image_url
+                    ?
+                    `<img
+                        src="${escapeHTML(product.image_url)}"
+                        alt="${escapeHTML(
+                            localized(product.name)
+                        )}"
+                        loading="lazy"
+                    >`
+                    :
+                    `<div
+                        style="
+                            width:100%;
+                            height:100%;
+                            display:grid;
+                            place-items:center;
+                            font-size:3rem;
+                        "
+                    >
+                        🍽️
+                    </div>`
+                }
+
+                ${
+                    product.badge
+                    ?
+                    `<span class="product-badge">
+                        ${escapeHTML(product.badge)}
+                    </span>`
+                    :
+                    ""
+                }
+
+                <button
+                    class="wishlist-button"
+                    onclick="toggleWishlist(${product.id})"
+                >
+                    ${favorite ? "♥" : "♡"}
+                </button>
+
+            </div>
+
+            <div class="product-content">
 
                 <h3>
                     ${escapeHTML(
-                        productName(product)
+                        localized(product.name)
                     )}
                 </h3>
 
-
                 <p class="product-description">
                     ${escapeHTML(
-                        productDescription(product)
+                        localized(product.description)
                     )}
                 </p>
 
-
                 <div class="product-bottom">
 
-                    <span class="product-price">
-                        ${Number(product.price).toFixed(2)} DH
-                    </span>
+                    <div>
 
+                        <div class="price">
+
+                            ${
+                                sale
+                                ?
+                                `<span class="old-price">
+                                    ${currency(product.price)}
+                                </span>`
+                                :
+                                ""
+                            }
+
+                            ${currency(price)}
+
+                        </div>
+
+                        <div class="stock-text">
+
+                            ${
+                                soldOut
+                                ?
+                                "Sold out"
+                                :
+                                `${product.stock} available`
+                            }
+
+                        </div>
+
+                    </div>
 
                     <button
-                        class="add-button"
-                        data-product-id="${product.id}"
+                        class="btn primary"
+                        ${
+                            soldOut
+                            ? "disabled"
+                            : ""
+                        }
+                        onclick="addToCart(${product.id})"
                     >
-                        +
+                        ${
+                            soldOut
+                            ? "Sold out"
+                            : "+"
+                        }
                     </button>
 
                 </div>
 
             </div>
 
-        `;
+        </article>
 
-
-        card
-            .querySelector(".add-button")
-            .onclick = () => {
-
-                addToCart(product.id);
-
-            };
-
-
-        container.appendChild(card);
-
-    });
+    `;
 
 }
 
-
-/* =========================================================
+/* ============================================================
    CART
-========================================================= */
+   ============================================================ */
+
+function saveCart() {
+
+    localStorage.setItem(
+        "restaurant_cart",
+        JSON.stringify(cart)
+    );
+
+}
 
 function addToCart(productId) {
 
     const product =
         products.find(
-            p => p.id === productId
+            p => Number(p.id) === Number(productId)
         );
 
+    if (!product) {
 
-    if (!product) return;
+        showToast(
+            "Product not found.",
+            "error"
+        );
 
+        return;
+
+    }
+
+    if (!product.active) {
+
+        showToast(
+            "Product unavailable.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (Number(product.stock) <= 0) {
+
+        showToast(
+            "This product is sold out.",
+            "error"
+        );
+
+        return;
+
+    }
 
     const existing =
         cart.find(
             item =>
-                item.product.id
-                === productId
+                Number(item.id)
+                ===
+                Number(productId)
         );
 
-
     if (existing) {
+
+        if (
+            existing.quantity >=
+            Number(product.stock)
+        ) {
+
+            showToast(
+                "You cannot add more than available stock.",
+                "error"
+            );
+
+            return;
+
+        }
 
         existing.quantity++;
 
     } else {
 
         cart.push({
-
-            product,
-
+            id: product.id,
             quantity: 1
-
         });
 
     }
 
-
     saveCart();
 
-    renderCart();
+    updateCartUI();
 
     showToast(
-        currentLanguage === "fr"
-            ? "Ajouté au panier"
-            : currentLanguage === "ar"
-            ? "تمت الإضافة إلى السلة"
-            : "Added to cart"
+        "Added to cart.",
+        "success"
     );
 
 }
 
-
-function changeQuantity(
+function changeCartQuantity(
     productId,
-    amount
+    delta
 ) {
+
+    const product =
+        products.find(
+            p => Number(p.id) === Number(productId)
+        );
 
     const item =
         cart.find(
             x =>
-                x.product.id
-                === productId
+                Number(x.id)
+                ===
+                Number(productId)
         );
 
+    if (!product || !item) return;
 
-    if (!item) return;
-
-
-    item.quantity += amount;
-
+    item.quantity += delta;
 
     if (item.quantity <= 0) {
 
         cart =
             cart.filter(
                 x =>
-                    x.product.id
-                    !== productId
+                    Number(x.id)
+                    !==
+                    Number(productId)
             );
+
+    } else if (
+        item.quantity >
+        Number(product.stock)
+    ) {
+
+        item.quantity =
+            Number(product.stock);
+
+        showToast(
+            "Stock limit reached.",
+            "error"
+        );
 
     }
 
-
     saveCart();
+
+    updateCartUI();
 
     renderCart();
 
 }
 
+function removeFromCart(productId) {
+
+    cart =
+        cart.filter(
+            item =>
+                Number(item.id)
+                !==
+                Number(productId)
+        );
+
+    saveCart();
+
+    updateCartUI();
+
+    renderCart();
+
+}
+
+function cartDetailed() {
+
+    return cart
+        .map(item => {
+
+            const product =
+                products.find(
+                    p =>
+                        Number(p.id)
+                        ===
+                        Number(item.id)
+                );
+
+            if (!product) {
+                return null;
+            }
+
+            return {
+                ...product,
+                quantity: item.quantity,
+                unitPrice: productPrice(product),
+                lineTotal:
+                    productPrice(product)
+                    *
+                    item.quantity
+            };
+
+        })
+        .filter(Boolean);
+
+}
+
+function cartSubtotal() {
+
+    return cartDetailed()
+        .reduce(
+            (sum,item) =>
+                sum + item.lineTotal,
+            0
+        );
+
+}
+
+function updateCartUI() {
+
+    const quantity =
+        cart.reduce(
+            (sum,item) =>
+                sum + Number(item.quantity),
+            0
+        );
+
+    $("cartCount").textContent =
+        quantity;
+
+    $("wishlistCount").textContent =
+        wishlist.length;
+
+}
+
+function openCart() {
+
+    renderCart();
+
+    openModal("cartModal");
+
+}
 
 function renderCart() {
 
-    const container =
-        $("cart-items");
+    const items =
+        cartDetailed();
 
+    if (!items.length) {
 
-    container.innerHTML = "";
+        $("cartItems").innerHTML = `
+            <div class="empty-state">
+                <h3>Your cart is empty</h3>
+                <p>Add something delicious first.</p>
+            </div>
+        `;
 
+        $("cartSubtotal").textContent =
+            currency(0);
 
-    let total = 0;
+        $("cartDelivery").textContent =
+            "—";
 
-    let count = 0;
+        $("cartTotal").textContent =
+            currency(0);
 
+        return;
 
-    cart.forEach(item => {
+    }
 
-        const product =
-            item.product;
+    $("cartItems").innerHTML =
+        items.map(item => `
 
+            <div class="cart-item">
 
-        const lineTotal =
-            Number(product.price)
-            * item.quantity;
-
-
-        total += lineTotal;
-
-        count += item.quantity;
-
-
-        const row =
-            document.createElement("div");
-
-
-        row.className =
-            "cart-item";
-
-
-        row.innerHTML = `
-
-            <div>
-
-                <strong>
-                    ${escapeHTML(
-                        productName(product)
-                    )}
-                </strong>
+                ${
+                    item.image_url
+                    ?
+                    `<img
+                        src="${escapeHTML(item.image_url)}"
+                        alt=""
+                    >`
+                    :
+                    `<div
+                        style="
+                            width:70px;
+                            height:70px;
+                            display:grid;
+                            place-items:center;
+                            background:#eee;
+                            border-radius:10px;
+                        "
+                    >
+                        🍽️
+                    </div>`
+                }
 
                 <div>
-                    ${Number(product.price).toFixed(2)} DH
+
+                    <strong>
+                        ${escapeHTML(
+                            localized(item.name)
+                        )}
+                    </strong>
+
+                    <div>
+                        ${currency(item.unitPrice)}
+                    </div>
+
+                    <div class="qty-controls">
+
+                        <button
+                            onclick="changeCartQuantity(
+                                ${item.id},
+                                -1
+                            )"
+                        >
+                            −
+                        </button>
+
+                        <span>
+                            ${item.quantity}
+                        </span>
+
+                        <button
+                            onclick="changeCartQuantity(
+                                ${item.id},
+                                1
+                            )"
+                        >
+                            +
+                        </button>
+
+                        <button
+                            onclick="removeFromCart(${item.id})"
+                        >
+                            🗑
+                        </button>
+
+                    </div>
+
                 </div>
 
+                <strong>
+                    ${currency(item.lineTotal)}
+                </strong>
+
             </div>
 
+        `).join("");
 
-            <div class="cart-item-controls">
+    const subtotal =
+        cartSubtotal();
 
-                <button
-                    data-minus="${product.id}"
+    $("cartSubtotal").textContent =
+        currency(subtotal);
+
+    $("cartDelivery").textContent =
+        "Calculated at checkout";
+
+    $("cartTotal").textContent =
+        currency(subtotal);
+
+}
+
+/* ============================================================
+   WISHLIST
+   ============================================================ */
+
+function saveWishlist() {
+
+    localStorage.setItem(
+        "restaurant_wishlist",
+        JSON.stringify(wishlist)
+    );
+
+}
+
+function toggleWishlist(productId) {
+
+    const id =
+        Number(productId);
+
+    if (wishlist.includes(id)) {
+
+        wishlist =
+            wishlist.filter(
+                x => x !== id
+            );
+
+    } else {
+
+        wishlist.push(id);
+
+    }
+
+    saveWishlist();
+
+    updateWishlistUI();
+
+    renderProducts();
+
+}
+
+function updateWishlistUI() {
+
+    $("wishlistCount").textContent =
+        wishlist.length;
+
+}
+
+function openWishlist() {
+
+    const items =
+        wishlist
+            .map(
+                id =>
+                    products.find(
+                        p => Number(p.id) === Number(id)
+                    )
+            )
+            .filter(Boolean);
+
+    if (!items.length) {
+
+        $("wishlistItems").innerHTML = `
+            <div class="empty-state">
+                Your wishlist is empty.
+            </div>
+        `;
+
+    } else {
+
+        $("wishlistItems").innerHTML =
+            items.map(
+                p => `
+
+                    <div class="admin-list-item">
+
+                        <strong>
+                            ${escapeHTML(
+                                localized(p.name)
+                            )}
+                        </strong>
+
+                        <p>
+                            ${currency(
+                                productPrice(p)
+                            )}
+                        </p>
+
+                        <div class="admin-actions">
+
+                            <button
+                                onclick="addToCart(${p.id})"
+                            >
+                                Add to cart
+                            </button>
+
+                            <button
+                                onclick="toggleWishlist(${p.id});openWishlist()"
+                            >
+                                Remove
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                `
+            ).join("");
+
+    }
+
+    openModal("wishlistModal");
+
+}
+
+/* ============================================================
+   CHECKOUT
+   ============================================================ */
+
+function openCheckout() {
+
+    if (!cartDetailed().length) {
+
+        showToast(
+            "Your cart is empty.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    closeModal("cartModal");
+
+    renderPaymentOptions();
+
+    updateCheckoutDelivery();
+
+    openModal("checkoutModal");
+
+}
+
+function getFulfillmentMethod() {
+
+    return document.querySelector(
+        'input[name="fulfillment"]:checked'
+    )?.value || "delivery";
+
+}
+
+function getPaymentMethod() {
+
+    return document.querySelector(
+        'input[name="paymentMethod"]:checked'
+    )?.value || "cash";
+
+}
+
+function renderPaymentOptions() {
+
+    if (!settings) return;
+
+    let html = "";
+
+    if (settings.cash_enabled) {
+
+        html += `
+
+            <label class="radio-card">
+
+                <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cash"
+                    checked
+                    onchange="updatePaymentUI()"
                 >
-                    −
-                </button>
 
                 <span>
-                    ${item.quantity}
+                    💵 Cash
                 </span>
 
-                <button
-                    data-plus="${product.id}"
-                >
-                    +
-                </button>
-
-            </div>
+            </label>
 
         `;
 
+    }
 
-        row.querySelector(
-            "[data-minus]"
-        ).onclick = () => {
+    if (
+        settings.paypal_enabled &&
+        (
+            settings.paypal_payment_url ||
+            settings.paypal_email
+        )
+    ) {
 
-            changeQuantity(
-                product.id,
-                -1
-            );
+        html += `
 
-        };
+            <label class="radio-card">
 
+                <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="paypal"
+                    ${
+                        !settings.cash_enabled
+                            ? "checked"
+                            : ""
+                    }
+                    onchange="updatePaymentUI()"
+                >
 
-        row.querySelector(
-            "[data-plus]"
-        ).onclick = () => {
+                <span>
+                    🅿️ PayPal
+                </span>
 
-            changeQuantity(
-                product.id,
-                1
-            );
+            </label>
 
-        };
+        `;
 
+    }
 
-        container.appendChild(row);
+    if (!html) {
 
-    });
-
-
-    if (cart.length === 0) {
-
-        container.innerHTML = `
-            <p>
-                ${t("empty_cart")}
+        html = `
+            <p class="warning-box">
+                No payment method is currently available.
+                Please contact the restaurant.
             </p>
         `;
 
     }
 
+    $("paymentOptions").innerHTML =
+        html;
 
-    $("cart-total").textContent =
-        `${total.toFixed(2)} DH`;
-
-
-    $("cart-count").textContent =
-        count;
+    updatePaymentUI();
 
 }
 
+function updatePaymentUI() {
 
-function saveCart() {
+    const method =
+        getPaymentMethod();
 
-    localStorage.setItem(
-        "restaurant_cart",
-        JSON.stringify(
-            cart.map(item => ({
-                productId:
-                    item.product.id,
-                quantity:
-                    item.quantity
-            }))
+    if (method === "paypal") {
+
+        $("paypalInstructions")
+            .style.display =
+            "block";
+
+        $("paypalInstructions")
+            .innerHTML = `
+
+                <strong>
+                    Pay with PayPal
+                </strong>
+
+                <p>
+                    ${
+                        escapeHTML(
+                            settings.paypal_instructions ||
+                            "Continue to PayPal to complete your payment."
+                        )
+                    }
+                </p>
+
+                ${
+                    settings.paypal_payment_url
+                    ?
+                    `<a
+                        href="${escapeHTML(
+                            settings.paypal_payment_url
+                        )}"
+                        target="_blank"
+                        rel="noopener"
+                        class="btn primary"
+                    >
+                        Open PayPal
+                    </a>`
+                    :
+                    ""
+                }
+
+            `;
+
+        $("paymentReferenceWrapper")
+            .style.display =
+            "block";
+
+    } else {
+
+        $("paypalInstructions")
+            .style.display =
+            "none";
+
+        $("paymentReferenceWrapper")
+            .style.display =
+            "none";
+
+    }
+
+}
+
+function updateCheckoutDelivery() {
+
+    const fulfillment =
+        getFulfillmentMethod();
+
+    const delivery =
+        fulfillment === "delivery";
+
+    $("deliveryFields")
+        .style.display =
+        delivery
+            ? "block"
+            : "none";
+
+    calculateCheckoutTotals();
+
+}
+
+async function calculateCheckoutTotals() {
+
+    const subtotal =
+        cartSubtotal();
+
+    let deliveryFee = 0;
+
+    if (
+        getFulfillmentMethod()
+        ===
+        "delivery"
+    ) {
+
+        const distance =
+            getCustomerDistance();
+
+        if (
+            distance !== null
+            &&
+            settings?.max_delivery_km > 0
+            &&
+            distance >
+            Number(settings.max_delivery_km)
+        ) {
+
+            deliveryFee = NaN;
+
+        } else if (
+            distance !== null
+        ) {
+
+            deliveryFee =
+                calculateLocalDeliveryFee(
+                    distance
+                );
+
+        } else {
+
+            deliveryFee =
+                Number(
+                    settings?.delivery_fee || 0
+                );
+
+        }
+
+        if (
+            Number(settings?.free_delivery_above || 0) > 0
+            &&
+            subtotal >=
+            Number(settings.free_delivery_above)
+        ) {
+
+            deliveryFee = 0;
+
+        }
+
+    }
+
+    const total =
+        subtotal +
+        (
+            Number.isFinite(deliveryFee)
+                ? deliveryFee
+                : 0
+        );
+
+    $("checkoutSubtotal").textContent =
+        currency(subtotal);
+
+    $("checkoutDelivery").textContent =
+        Number.isFinite(deliveryFee)
+            ? currency(deliveryFee)
+            : "Unavailable";
+
+    $("checkoutTotal").textContent =
+        currency(total);
+
+    return {
+        subtotal,
+        deliveryFee,
+        total
+    };
+
+}
+
+function getCustomerDistance() {
+
+    if (
+        customerLocation.latitude === null
+        ||
+        customerLocation.longitude === null
+    ) {
+        return null;
+    }
+
+    if (
+        settings?.latitude === null
+        ||
+        settings?.longitude === null
+        ||
+        settings?.latitude === undefined
+        ||
+        settings?.longitude === undefined
+    ) {
+        return null;
+    }
+
+    return haversine(
+        Number(settings.latitude),
+        Number(settings.longitude),
+        Number(customerLocation.latitude),
+        Number(customerLocation.longitude)
+    );
+
+}
+
+function haversine(
+    lat1,
+    lon1,
+    lat2,
+    lon2
+) {
+
+    const R = 6371;
+
+    const dLat =
+        (lat2 - lat1)
+        *
+        Math.PI / 180;
+
+    const dLon =
+        (lon2 - lon1)
+        *
+        Math.PI / 180;
+
+    const a =
+        Math.sin(dLat/2) ** 2
+        +
+        Math.cos(lat1 * Math.PI / 180)
+        *
+        Math.cos(lat2 * Math.PI / 180)
+        *
+        Math.sin(dLon/2) ** 2;
+
+    return (
+        R *
+        2 *
+        Math.atan2(
+            Math.sqrt(a),
+            Math.sqrt(1-a)
         )
     );
 
 }
 
+function calculateLocalDeliveryFee(distance) {
 
-/* =========================================================
-   RESTORE CART
-========================================================= */
+    const tiers =
+        Array.isArray(settings?.delivery_tiers)
+            ? settings.delivery_tiers
+            : [];
 
-function restoreCart() {
+    const sorted =
+        [...tiers].sort(
+            (a,b) =>
+                Number(a.max_km)
+                -
+                Number(b.max_km)
+        );
 
-    try {
+    for (const tier of sorted) {
 
-        const saved =
-            JSON.parse(
-                localStorage.getItem(
-                    "restaurant_cart"
-                )
-            );
+        if (
+            distance <=
+            Number(tier.max_km)
+        ) {
 
+            return Number(tier.fee || 0);
 
-        if (!Array.isArray(saved))
-            return;
-
-
-        cart = [];
-
-
-        saved.forEach(savedItem => {
-
-            const product =
-                products.find(
-                    p =>
-                        p.id
-                        === savedItem.productId
-                );
-
-
-            if (product) {
-
-                cart.push({
-
-                    product,
-
-                    quantity:
-                        savedItem.quantity
-
-                });
-
-            }
-
-        });
-
-
-        renderCart();
-
-    } catch {
-
-        cart = [];
+        }
 
     }
 
+    return Number(
+        settings?.delivery_fee || 0
+    );
+
 }
 
+function getCustomerLocation() {
 
-/* =========================================================
-   CHECKOUT
-========================================================= */
-
-async function placeOrder(event) {
-
-    event.preventDefault();
-
-
-    if (cart.length === 0) {
+    if (!navigator.geolocation) {
 
         showToast(
-            t("empty_cart")
+            "Geolocation is not supported by this browser.",
+            "error"
         );
 
         return;
 
     }
 
+    $("locationStatus").textContent =
+        "Requesting your location...";
 
-    const customerName =
-        $("customer-name").value.trim();
+    navigator.geolocation.getCurrentPosition(
 
+        position => {
 
-    const customerPhone =
-        $("customer-phone").value.trim();
+            customerLocation.latitude =
+                position.coords.latitude;
 
+            customerLocation.longitude =
+                position.coords.longitude;
 
-    const customerAddress =
-        $("customer-address").value.trim();
+            const distance =
+                getCustomerDistance();
 
+            if (
+                distance !== null &&
+                settings.max_delivery_km > 0 &&
+                distance >
+                Number(settings.max_delivery_km)
+            ) {
 
-    const customerNotes =
-        $("customer-notes").value.trim();
+                $("locationStatus").textContent =
+                    `You are approximately ${distance.toFixed(1)} km away. Delivery is unavailable.`;
 
+                showToast(
+                    "This location is outside the delivery area.",
+                    "error"
+                );
 
-    const orderType =
-        $("order-type").value;
+            } else {
 
+                $("locationStatus").textContent =
+                    distance !== null
+                        ?
+                        `Location detected — approximately ${distance.toFixed(1)} km away.`
+                        :
+                        "Location detected.";
 
-    const paymentMethod =
-        $("payment-method").value;
+                showToast(
+                    "Location detected.",
+                    "success"
+                );
 
+            }
 
-    let subtotal = 0;
+            calculateCheckoutTotals();
 
+        },
 
-    cart.forEach(item => {
+        error => {
 
-        subtotal +=
-            Number(item.product.price)
-            * item.quantity;
+            console.error(error);
 
-    });
+            $("locationStatus").textContent =
+                "Location permission was not granted.";
 
+            if (
+                settings.require_customer_location
+            ) {
 
-    const deliveryFee =
-        orderType === "delivery"
-            ? 0
-            : 0;
+                showToast(
+                    "Location is required for delivery.",
+                    "error"
+                );
 
+            }
 
-    const total =
-        subtotal + deliveryFee;
+        },
 
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        }
 
-    const { data: order, error } =
+    );
 
-        await supabaseClient
+}
 
-            .from("orders")
+/* ============================================================
+   PLACE ORDER
+   ============================================================ */
 
-            .insert({
+async function submitOrder(event) {
 
-                customer_name:
-                    customerName,
+    event.preventDefault();
 
-                customer_phone:
-                    customerPhone,
+    const items =
+        cartDetailed();
 
-                customer_address:
-                    customerAddress,
+    if (!items.length) {
 
-                customer_notes:
-                    customerNotes,
+        showToast(
+            "Your cart is empty.",
+            "error"
+        );
 
-                order_type:
-                    orderType,
+        return;
 
-                payment_method:
-                    paymentMethod,
+    }
 
-                subtotal:
-                    subtotal,
+    const fulfillment =
+        getFulfillmentMethod();
 
-                delivery_fee:
-                    deliveryFee,
+    const payment =
+        getPaymentMethod();
 
-                total:
-                    total
+    if (
+        fulfillment === "delivery"
+        &&
+        settings.require_customer_location
+        &&
+        (
+            customerLocation.latitude === null
+            ||
+            customerLocation.longitude === null
+        )
+    ) {
 
-            })
+        showToast(
+            "Please allow location access so we can calculate delivery.",
+            "error"
+        );
 
-            .select()
+        return;
 
-            .single();
+    }
 
+    if (
+        fulfillment === "delivery"
+        &&
+        settings.max_delivery_km > 0
+    ) {
 
-    if (error) {
+        const distance =
+            getCustomerDistance();
+
+        if (
+            distance !== null
+            &&
+            distance >
+            Number(settings.max_delivery_km)
+        ) {
+
+            showToast(
+                "This location is outside the delivery area.",
+                "error"
+            );
+
+            return;
+
+        }
+
+    }
+
+    const button =
+        $("submitOrderButton");
+
+    button.disabled = true;
+
+    button.textContent =
+        "Sending...";
+
+    try {
+
+        const response =
+            await supabaseClient.rpc(
+                "place_order",
+                {
+                    p_customer_name:
+                        $("checkoutName").value.trim(),
+
+                    p_phone:
+                        $("checkoutPhone").value.trim(),
+
+                    p_email:
+                        $("checkoutEmail").value.trim(),
+
+                    p_address:
+                        $("checkoutAddress").value.trim(),
+
+                    p_city:
+                        $("checkoutCity").value.trim(),
+
+                    p_note:
+                        $("checkoutNote").value.trim(),
+
+                    p_items:
+                        items.map(item => ({
+                            id: item.id,
+                            quantity: item.quantity
+                        })),
+
+                    p_fulfillment_method:
+                        fulfillment,
+
+                    p_payment_method:
+                        payment,
+
+                    p_payment_reference:
+                        $("paymentReference").value.trim(),
+
+                    p_customer_latitude:
+                        customerLocation.latitude,
+
+                    p_customer_longitude:
+                        customerLocation.longitude
+                }
+            );
+
+        if (response.error) {
+            throw response.error;
+        }
+
+        const result =
+            response.data;
+
+        lastSuccessfulOrder =
+            result;
+
+        cart = [];
+
+        saveCart();
+
+        updateCartUI();
+
+        renderCart();
+
+        $("checkoutForm").reset();
+
+        customerLocation = {
+            latitude: null,
+            longitude: null
+        };
+
+        closeModal("checkoutModal");
+
+        $("successOrderNumber")
+            .textContent =
+            result.order_number;
+
+        $("successMessage")
+            .textContent =
+            payment === "paypal"
+                ?
+                "Please complete your PayPal payment if you have not already done so."
+                :
+                "The restaurant has received your order.";
+
+        openModal("successModal");
+
+        if (
+            payment === "paypal"
+            &&
+            settings.paypal_payment_url
+        ) {
+
+            window.open(
+                settings.paypal_payment_url,
+                "_blank",
+                "noopener"
+            );
+
+        }
+
+    } catch(error) {
 
         console.error(error);
 
         showToast(
-            "Could not place order."
+            error.message ||
+            "Could not place the order.",
+            "error"
         );
 
-        return;
+    } finally {
+
+        button.disabled = false;
+
+        button.textContent =
+            "Confirmer la commande";
 
     }
 
+}
 
-    const items =
-        cart.map(item => ({
+/* ============================================================
+   WHATSAPP
+   ============================================================ */
 
-            order_id:
-                order.id,
+function sendOrderWhatsApp() {
 
-            product_id:
-                item.product.id,
+    if (!lastSuccessfulOrder) return;
 
-            product_name:
-                productName(item.product),
-
-            quantity:
-                item.quantity,
-
-            unit_price:
-                item.product.price,
-
-            total_price:
-                Number(item.product.price)
-                * item.quantity
-
-        }));
-
-
-    const {
-        error: itemError
-    } = await supabaseClient
-
-        .from("order_items")
-
-        .insert(items);
-
-
-    if (itemError) {
-
-        console.error(itemError);
+    if (!settings?.whatsapp) {
 
         showToast(
-            "Order was created but items failed."
+            "WhatsApp is not configured.",
+            "error"
         );
 
         return;
 
     }
 
-
-    cart = [];
-
-    saveCart();
-
-    renderCart();
-
-
-    $("checkout-modal")
-        .classList.add("hidden");
-
-
-    $("cart-drawer")
-        .classList.remove("open");
-
-
-    $("cart-overlay")
-        .classList.add("hidden");
-
-
-    $("checkout-form").reset();
-
-
-    showToast(
-        t("order_success")
-    );
-
-
-    sendWhatsAppCopy(
-        order,
-        items
-    );
-
-}
-
-
-/* =========================================================
-   WHATSAPP COPY
-========================================================= */
-
-function cleanPhone(phone) {
-
-    return String(phone || "")
-        .replace(/[^\d]/g, "");
-
-}
-
-
-function sendWhatsAppCopy(
-    order,
-    items
-) {
+    let phone =
+        String(settings.whatsapp)
+        .replace(/[^\d]/g,"");
 
     if (
-        !settings?.whatsapp
-    ) return;
+        phone.startsWith("0")
+        &&
+        settings.city
+    ) {
+        /*
+          Keep the number as entered if possible.
+          Owner should preferably enter international format.
+        */
+    }
 
+    const message =
+        `Hello ${settings.restaurant_name || ""},
 
-    let message =
-        `🍽️ ${settings.restaurant_name}\n\n`;
+I placed an order.
 
+Order number:
+${lastSuccessfulOrder.order_number}
 
-    message +=
-        `Order: ${order.id}\n`;
+Total:
+${currency(lastSuccessfulOrder.total)}
 
-
-    message +=
-        `Name: ${order.customer_name}\n`;
-
-
-    message +=
-        `Phone: ${order.customer_phone}\n`;
-
-
-    message +=
-        `Address: ${order.customer_address}\n\n`;
-
-
-    items.forEach(item => {
-
-        message +=
-            `${item.product_name} × ${item.quantity} = ${Number(item.total_price).toFixed(2)} DH\n`;
-
-    });
-
-
-    message +=
-        `\nTOTAL: ${Number(order.total).toFixed(2)} DH`;
-
+Please confirm my order.`;
 
     const url =
-        `https://wa.me/${cleanPhone(
-            settings.whatsapp
-        )}?text=${encodeURIComponent(
-            message
-        )}`;
+        `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 
-
-    /*
-        We don't force-open WhatsApp automatically.
-
-        The order is already saved in Supabase.
-
-        This button can be added later if desired.
-    */
+    window.open(
+        url,
+        "_blank",
+        "noopener"
+    );
 
 }
 
+/* ============================================================
+   REVIEWS
+   ============================================================ */
 
-/* =========================================================
-   SOCIAL LINKS
-========================================================= */
+function renderReviews() {
 
-function renderSocials() {
+    if (!settings?.show_reviews) return;
 
-    const container =
-        $("social-links");
+    if (!reviews.length) {
 
-
-    container.innerHTML = "";
-
-
-    if (
-        settings.instagram_url
-    ) {
-
-        container.innerHTML += `
-            <a
-                href="${escapeHTML(
-                    settings.instagram_url
-                )}"
-                target="_blank"
-            >
-                Instagram
-            </a>
+        $("reviewsGrid").innerHTML = `
+            <div class="empty-state">
+                No reviews yet.
+            </div>
         `;
+
+        return;
 
     }
 
+    $("reviewsGrid").innerHTML =
+        reviews
+            .slice(0,9)
+            .map(
+                review => `
 
-    if (
-        settings.facebook_url
-    ) {
+                    <article class="review-card">
 
-        container.innerHTML += `
-            <a
-                href="${escapeHTML(
-                    settings.facebook_url
-                )}"
-                target="_blank"
-            >
-                Facebook
-            </a>
-        `;
+                        <div class="stars">
+                            ${"★".repeat(
+                                Number(review.rating)
+                            )}
+                            ${"☆".repeat(
+                                5 - Number(review.rating)
+                            )}
+                        </div>
 
-    }
+                        <p>
+                            ${escapeHTML(
+                                review.text
+                            )}
+                        </p>
 
+                        <strong>
+                            ${escapeHTML(
+                                review.customer_name
+                            )}
+                        </strong>
 
-    if (
-        settings.tiktok_url
-    ) {
+                    </article>
 
-        container.innerHTML += `
-            <a
-                href="${escapeHTML(
-                    settings.tiktok_url
-                )}"
-                target="_blank"
-            >
-                TikTok
-            </a>
-        `;
-
-    }
+                `
+            )
+            .join("");
 
 }
 
+function openReviewModal() {
 
-/* =========================================================
-   AUTH
-========================================================= */
+    openModal("reviewModal");
 
-async function loginAdmin(event) {
+}
+
+async function submitReview(event) {
 
     event.preventDefault();
 
+    try {
 
-    const email =
-        $("admin-email").value;
+        const result =
+            await supabaseClient
+                .from("reviews")
+                .insert({
+                    customer_name:
+                        $("reviewName").value.trim(),
 
+                    rating:
+                        Number(
+                            $("reviewRating").value
+                        ),
 
-    const password =
-        $("admin-password").value;
+                    text:
+                        $("reviewText").value.trim(),
 
+                    approved: false
+                });
 
-    $("login-error").textContent =
-        "";
+        if (result.error) {
+            throw result.error;
+        }
 
+        closeModal("reviewModal");
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient.auth
-            .signInWithPassword({
+        event.target.reset();
 
-                email,
+        showToast(
+            "Review submitted for approval.",
+            "success"
+        );
 
-                password
+    } catch(error) {
 
-            });
+        console.error(error);
 
-
-    if (error) {
-
-        $("login-error").textContent =
-            error.message;
-
-        return;
+        showToast(
+            error.message ||
+            "Could not submit review.",
+            "error"
+        );
 
     }
 
+}
 
-    currentUser =
-        data.user;
+/* ============================================================
+   ADMIN LOGIN
+   ============================================================ */
 
+function openAdminLogin() {
 
-    await verifyAdmin();
-
+    openModal("adminLoginModal");
 
 }
 
+async function adminLogin(event) {
+
+    event.preventDefault();
+
+    const email =
+        $("adminEmail").value.trim();
+
+    const password =
+        $("adminPassword").value;
+
+    try {
+
+        const result =
+            await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        const isAdmin =
+            await verifyAdmin();
+
+        if (!isAdmin) {
+
+            await supabaseClient.auth.signOut();
+
+            throw new Error(
+                "This account is not an administrator."
+            );
+
+        }
+
+        closeModal("adminLoginModal");
+
+        openModal("adminModal");
+
+        await refreshAdmin();
+
+        showToast(
+            "Admin login successful.",
+            "success"
+        );
+
+    } catch(error) {
+
+        console.error(error);
+
+        showToast(
+            error.message ||
+            "Login failed.",
+            "error"
+        );
+
+    }
+
+}
 
 async function verifyAdmin() {
 
     const {
-        data,
-        error
+        data: {
+            user
+        }
     } =
+        await supabaseClient.auth.getUser();
+
+    if (!user) return false;
+
+    const result =
         await supabaseClient
-
             .from("admin_users")
-
             .select("user_id")
-
-            .eq(
-                "user_id",
-                currentUser.id
-            )
+            .eq("user_id",user.id)
             .maybeSingle();
 
+    return Boolean(
+        result.data &&
+        !result.error
+    );
 
-    if (
-        error
-        ||
-        !data
-    ) {
+}
 
-        await supabaseClient.auth
-            .signOut();
+async function checkAdminSession() {
 
+    const isAdmin =
+        await verifyAdmin();
 
-        $("login-error").textContent =
-            "This account is not an administrator.";
+    if (isAdmin) {
 
-        return;
+        console.log(
+            "Administrator session detected."
+        );
 
     }
 
+}
 
-    openAdminPanel();
+async function adminLogout() {
+
+    await supabaseClient.auth.signOut();
+
+    closeModal("adminModal");
+
+    showToast(
+        "Logged out.",
+        "success"
+    );
 
 }
 
-
-async function logoutAdmin() {
-
-    await supabaseClient.auth
-        .signOut();
-
-
-    currentUser = null;
-
-    closeAdminPanel();
-
-}
-
-
-/* =========================================================
-   ADMIN PANEL
-========================================================= */
-
-function openAdminPanel() {
-
-    $("admin-login")
-        .classList.add("hidden");
-
-
-    $("admin-panel")
-        .classList.remove("hidden");
-
-
-    loadAdminData();
-
-}
-
-
-function closeAdminPanel() {
-
-    $("admin-panel")
-        .classList.add("hidden");
-
-}
-
-
-function openAdminLogin() {
-
-    $("admin-login")
-        .classList.remove("hidden");
-
-}
-
-
-/* =========================================================
-   ADMIN DATA
-========================================================= */
-
-async function loadAdminData() {
-
-    await Promise.all([
-
-        loadAdminCategories(),
-
-        loadAdminProducts(),
-
-        loadAdminOrders(),
-
-        loadAdminSettings()
-
-    ]);
-
-
-    updateStats();
-
-}
-
-
-/* =========================================================
-   ADMIN SETTINGS
-========================================================= */
-
-async function loadAdminSettings() {
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-
-            .from("site_settings")
-
-            .select("*")
-
-            .eq("id", 1)
-
-            .single();
-
-
-    if (error) {
-
-        console.error(error);
-
-        return;
-
-    }
-
-
-    settings = data;
-
-
-    $("setting-name").value =
-        settings.restaurant_name || "";
-
-
-    $("setting-phone").value =
-        settings.phone || "";
-
-
-    $("setting-whatsapp").value =
-        settings.whatsapp || "";
-
-
-    $("setting-email").value =
-        settings.email || "";
-
-
-    $("setting-address").value =
-        settings.address || "";
-
-
-    $("setting-maps").value =
-        settings.maps_url || "";
-
-
-    $("setting-instagram").value =
-        settings.instagram_url || "";
-
-
-    $("setting-facebook").value =
-        settings.facebook_url || "";
-
-
-    $("setting-tiktok").value =
-        settings.tiktok_url || "";
-
-
-    $("setting-hours").value =
-        settings.opening_hours || "";
-
-
-    $("design-primary").value =
-        settings.primary_color || "#d62828";
-
-
-    $("design-secondary").value =
-        settings.secondary_color || "#111111";
-
-
-    $("design-accent").value =
-        settings.accent_color || "#fcbf49";
-
-
-    $("design-radius").value =
-        settings.border_radius || 14;
-
-
-    $("design-overlay").value =
-        settings.hero_overlay || 55;
-
-
-    $("design-font").value =
-        settings.font_family || "Inter";
-
-
-    $("design-image").value =
-        settings.hero_image_url || "";
-
-
-    $("design-video").value =
-        settings.hero_video_url || "";
-
-
-    $("design-logo").value =
-        settings.logo_url || "";
-
-
-    $("design-theme").value =
-        settings.theme_mode || "dark";
-
-}
-
-
-/* =========================================================
-   SAVE GENERAL
-========================================================= */
-
-async function saveGeneral(event) {
-
-    event.preventDefault();
-
-
-    const updates = {
-
-        restaurant_name:
-            $("setting-name").value.trim(),
-
-        phone:
-            $("setting-phone").value.trim(),
-
-        whatsapp:
-            $("setting-whatsapp").value.trim(),
-
-        email:
-            $("setting-email").value.trim(),
-
-        address:
-            $("setting-address").value.trim(),
-
-        maps_url:
-            $("setting-maps").value.trim(),
-
-        instagram_url:
-            $("setting-instagram").value.trim(),
-
-        facebook_url:
-            $("setting-facebook").value.trim(),
-
-        tiktok_url:
-            $("setting-tiktok").value.trim(),
-
-        opening_hours:
-            $("setting-hours").value.trim(),
-
-        updated_at:
-            new Date().toISOString()
-
-    };
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-
-            .from("site_settings")
-
-            .update(updates)
-
-            .eq("id", 1);
-
-
-    if (error) {
-
-        showToast(error.message);
-
-        return;
-
-    }
-
-
-    await loadSettings();
-
-    showToast("Saved!");
-
-}
-
-
-/* =========================================================
-   SAVE DESIGN
-========================================================= */
-
-async function saveDesign(event) {
-
-    event.preventDefault();
-
-
-    const updates = {
-
-        primary_color:
-            $("design-primary").value,
-
-        secondary_color:
-            $("design-secondary").value,
-
-        accent_color:
-            $("design-accent").value,
-
-        border_radius:
-            Number(
-                $("design-radius").value
-            ),
-
-        hero_overlay:
-            Number(
-                $("design-overlay").value
-            ),
-
-        font_family:
-            $("design-font").value,
-
-        hero_image_url:
-            $("design-image").value.trim(),
-
-        hero_video_url:
-            $("design-video").value.trim(),
-
-        logo_url:
-            $("design-logo").value.trim(),
-
-        theme_mode:
-            $("design-theme").value,
-
-        updated_at:
-            new Date().toISOString()
-
-    };
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-
-            .from("site_settings")
-
-            .update(updates)
-
-            .eq("id", 1);
-
-
-    if (error) {
-
-        showToast(error.message);
-
-        return;
-
-    }
-
-
-    await loadSettings();
-
-    showToast("Design saved!");
-
-}
-
-
-/* =========================================================
-   ADMIN CATEGORIES
-========================================================= */
-
-async function loadAdminCategories() {
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-
-            .from("categories")
-
-            .select("*")
-
-            .order("sort_order");
-
-
-    if (error) {
-
-        console.error(error);
-
-        return;
-
-    }
-
-
-    categories = data || [];
-
-    renderAdminCategories();
-
-}
-
-
-function renderAdminCategories() {
-
-    const container =
-        $("admin-categories");
-
-
-    container.innerHTML = "";
-
-
-    categories.forEach(category => {
-
-        const div =
-            document.createElement("div");
-
-
-        div.className =
-            "admin-category-card";
-
-
-        div.innerHTML = `
-
-            <strong>
-                ${escapeHTML(
-                    category.name_fr
-                )}
-            </strong>
-
-            <span>
-                /
-                ${escapeHTML(
-                    category.name_en
-                )}
-            </span>
-
-            <div class="admin-actions">
-
-                <button
-                    data-edit-category="${category.id}"
-                >
-                    Edit
-                </button>
-
-                <button
-                    data-delete-category="${category.id}"
-                >
-                    Delete
-                </button>
-
-            </div>
-
-        `;
-
-
-        div.querySelector(
-            "[data-edit-category]"
-        ).onclick = () => {
-
-            openCategoryEditor(
-                category
-            );
-
-        };
-
-
-        div.querySelector(
-            "[data-delete-category]"
-        ).onclick = () => {
-
-            deleteCategory(
-                category.id
-            );
-
-        };
-
-
-        container.appendChild(div);
+/* ============================================================
+   ADMIN TABS
+   ============================================================ */
+
+function showAdminTab(
+    tab,
+    button
+) {
+
+    document.querySelectorAll(
+        ".admin-panel"
+    ).forEach(panel => {
+
+        panel.classList.remove("active");
 
     });
 
+    document.querySelectorAll(
+        ".admin-tab"
+    ).forEach(tabButton => {
+
+        tabButton.classList.remove("active");
+
+    });
+
+    const panel =
+        $(`admin-${tab}`);
+
+    if (panel) {
+        panel.classList.add("active");
+    }
+
+    if (button) {
+        button.classList.add("active");
+    }
+
 }
 
+/* ============================================================
+   ADMIN REFRESH
+   ============================================================ */
 
-/* =========================================================
-   ADD CATEGORY
-========================================================= */
+async function refreshAdmin() {
 
-function openCategoryEditor(
-    category = null
-) {
+    if (!(await verifyAdmin())) {
 
-    $("category-editor")
-        .classList.remove("hidden");
+        closeModal("adminModal");
 
+        return;
 
-    $("category-id").value =
+    }
+
+    await loadEverything();
+
+    await loadAdminOrders();
+
+    await loadReviews();
+
+    fillSettingsForms();
+
+    renderAdminCategories();
+
+    renderAdminProducts();
+
+    renderDeliveryEditor();
+
+    renderPaymentAdmin();
+
+    renderAppearanceAdmin();
+
+    renderDashboard();
+
+}
+
+/* ============================================================
+   ADMIN SETTINGS
+   ============================================================ */
+
+function fillSettingsForms() {
+
+    if (!settings) return;
+
+    $("sRestaurantName").value =
+        settings.restaurant_name || "";
+
+    $("sPhone").value =
+        settings.phone || "";
+
+    $("sWhatsapp").value =
+        settings.whatsapp || "";
+
+    $("sEmail").value =
+        settings.email || "";
+
+    $("sAddress").value =
+        settings.address || "";
+
+    $("sCity").value =
+        settings.city || "";
+
+    $("sMapsUrl").value =
+        settings.maps_url || "";
+
+    $("sCurrency").value =
+        settings.currency || "MAD";
+
+    const heroEyebrow =
+        settings.hero_eyebrow || {};
+
+    const heroTitle =
+        settings.hero_title || {};
+
+    const heroDescription =
+        settings.hero_description || {};
+
+    const heroButton =
+        settings.hero_button || {};
+
+    $("sHeroEyebrowFr").value =
+        heroEyebrow.fr || "";
+
+    $("sHeroEyebrowEn").value =
+        heroEyebrow.en || "";
+
+    $("sHeroEyebrowAr").value =
+        heroEyebrow.ar || "";
+
+    $("sHeroTitleFr").value =
+        heroTitle.fr || "";
+
+    $("sHeroTitleEn").value =
+        heroTitle.en || "";
+
+    $("sHeroTitleAr").value =
+        heroTitle.ar || "";
+
+    $("sHeroDescriptionFr").value =
+        heroDescription.fr || "";
+
+    $("sHeroDescriptionEn").value =
+        heroDescription.en || "";
+
+    $("sHeroDescriptionAr").value =
+        heroDescription.ar || "";
+
+    $("sHeroButtonFr").value =
+        heroButton.fr || "";
+
+    $("sHeroButtonEn").value =
+        heroButton.en || "";
+
+    $("sHeroButtonAr").value =
+        heroButton.ar || "";
+
+    const announcement =
+        settings.announcement || {};
+
+    $("sAnnouncementFr").value =
+        announcement.fr || "";
+
+    $("sAnnouncementEn").value =
+        announcement.en || "";
+
+    $("sAnnouncementAr").value =
+        announcement.ar || "";
+
+    $("sInstagram").value =
+        settings.instagram || "";
+
+    $("sFacebook").value =
+        settings.facebook || "";
+
+    $("sTiktok").value =
+        settings.tiktok || "";
+
+    $("sFooterText").value =
+        settings.footer_text || "";
+
+    renderHoursEditor();
+
+}
+
+function renderHoursEditor() {
+
+    const days = [
+        ["monday","Monday"],
+        ["tuesday","Tuesday"],
+        ["wednesday","Wednesday"],
+        ["thursday","Thursday"],
+        ["friday","Friday"],
+        ["saturday","Saturday"],
+        ["sunday","Sunday"]
+    ];
+
+    const hours =
+        settings?.opening_hours || {};
+
+    $("hoursEditor").innerHTML =
+        days.map(
+            ([key,label]) => {
+
+                const row =
+                    hours[key] || {};
+
+                return `
+
+                    <div class="hours-row">
+
+                        <strong>
+                            ${label}
+                        </strong>
+
+                        <input
+                            data-hours-day="${key}"
+                            data-hours-field="open"
+                            type="time"
+                            value="${escapeHTML(
+                                row.open || ""
+                            )}"
+                        >
+
+                        <input
+                            data-hours-day="${key}"
+                            data-hours-field="close"
+                            type="time"
+                            value="${escapeHTML(
+                                row.close || ""
+                            )}"
+                        >
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
+
+}
+
+async function saveRestaurantSettings(event) {
+
+    event.preventDefault();
+
+    try {
+
+        const openingHours = {};
+
+        document.querySelectorAll(
+            "[data-hours-day]"
+        ).forEach(input => {
+
+            const day =
+                input.dataset.hoursDay;
+
+            const field =
+                input.dataset.hoursField;
+
+            if (!openingHours[day]) {
+                openingHours[day] = {};
+            }
+
+            openingHours[day][field] =
+                input.value;
+
+        });
+
+        const payload = {
+
+            restaurant_name:
+                $("sRestaurantName").value.trim(),
+
+            phone:
+                $("sPhone").value.trim(),
+
+            whatsapp:
+                $("sWhatsapp").value.trim(),
+
+            email:
+                $("sEmail").value.trim(),
+
+            address:
+                $("sAddress").value.trim(),
+
+            city:
+                $("sCity").value.trim(),
+
+            maps_url:
+                $("sMapsUrl").value.trim(),
+
+            currency:
+                $("sCurrency").value.trim() ||
+                "MAD",
+
+            opening_hours:
+                openingHours,
+
+            hero_eyebrow: {
+                fr: $("sHeroEyebrowFr").value,
+                en: $("sHeroEyebrowEn").value,
+                ar: $("sHeroEyebrowAr").value
+            },
+
+            hero_title: {
+                fr: $("sHeroTitleFr").value,
+                en: $("sHeroTitleEn").value,
+                ar: $("sHeroTitleAr").value
+            },
+
+            hero_description: {
+                fr: $("sHeroDescriptionFr").value,
+                en: $("sHeroDescriptionEn").value,
+                ar: $("sHeroDescriptionAr").value
+            },
+
+            hero_button: {
+                fr: $("sHeroButtonFr").value,
+                en: $("sHeroButtonEn").value,
+                ar: $("sHeroButtonAr").value
+            },
+
+            announcement: {
+                fr: $("sAnnouncementFr").value,
+                en: $("sAnnouncementEn").value,
+                ar: $("sAnnouncementAr").value
+            },
+
+            instagram:
+                $("sInstagram").value.trim(),
+
+            facebook:
+                $("sFacebook").value.trim(),
+
+            tiktok:
+                $("sTiktok").value.trim(),
+
+            footer_text:
+                $("sFooterText").value.trim()
+
+        };
+
+        const result =
+            await supabaseClient
+                .from("site_settings")
+                .update(payload)
+                .eq("id",1);
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        await loadEverything();
+
+        showToast(
+            "Restaurant settings saved permanently.",
+            "success"
+        );
+
+    } catch(error) {
+
+        console.error(error);
+
+        showToast(
+            error.message ||
+            "Could not save settings.",
+            "error"
+        );
+
+    }
+
+}
+
+/* ============================================================
+   CATEGORY ADMIN
+   ============================================================ */
+
+function openCategoryEditor(id = null) {
+
+    const category =
+        id === null
+            ? null
+            :
+            categories.find(
+                c =>
+                    Number(c.id)
+                    ===
+                    Number(id)
+            );
+
+    $("categoryEditorTitle").textContent =
+        category
+            ? "Edit Category"
+            : "Add Category";
+
+    $("editCategoryId").value =
         category?.id || "";
 
+    $("categoryFr").value =
+        category?.name?.fr || "";
 
-    $("category-fr").value =
-        category?.name_fr || "";
+    $("categoryEn").value =
+        category?.name?.en || "";
 
+    $("categoryAr").value =
+        category?.name?.ar || "";
 
-    $("category-ar").value =
-        category?.name_ar || "";
+    $("categorySort").value =
+        category?.sort_order ?? 0;
 
+    $("categoryActive").checked =
+        category
+            ? Boolean(category.active)
+            : true;
 
-    $("category-en").value =
-        category?.name_en || "";
-
-
-    $("category-order").value =
-        category?.sort_order || 0;
-
-
-    $("category-visible").checked =
-        category?.visible !== false;
+    openModal(
+        "categoryEditorModal"
+    );
 
 }
-
 
 async function saveCategory(event) {
 
     event.preventDefault();
 
+    if (!(await verifyAdmin())) {
 
-    const id =
-        $("category-id").value;
-
-
-    const category = {
-
-        name_fr:
-            $("category-fr").value.trim(),
-
-        name_ar:
-            $("category-ar").value.trim(),
-
-        name_en:
-            $("category-en").value.trim(),
-
-        sort_order:
-            Number(
-                $("category-order").value
-            ),
-
-        visible:
-            $("category-visible").checked
-
-    };
-
-
-    let error;
-
-
-    if (id) {
-
-        ({
-            error
-        } =
-            await supabaseClient
-
-                .from("categories")
-
-                .update(category)
-
-                .eq("id", id));
-
-    } else {
-
-        ({
-            error
-        } =
-            await supabaseClient
-
-                .from("categories")
-
-                .insert(category));
-
-    }
-
-
-    if (error) {
-
-        showToast(error.message);
+        showToast(
+            "Admin authentication required.",
+            "error"
+        );
 
         return;
 
     }
 
+    const id =
+        $("editCategoryId").value;
 
-    $("category-editor")
-        .classList.add("hidden");
+    const payload = {
 
+        name: {
+            fr:
+                $("categoryFr").value.trim(),
 
-    await loadCategories();
+            en:
+                $("categoryEn").value.trim()
+                ||
+                $("categoryFr").value.trim(),
 
-    await loadAdminCategories();
+            ar:
+                $("categoryAr").value.trim()
+                ||
+                $("categoryFr").value.trim()
+        },
 
-    await loadAdminProducts();
+        sort_order:
+            Number(
+                $("categorySort").value || 0
+            ),
 
-    showToast("Category saved!");
+        active:
+            $("categoryActive").checked
+
+    };
+
+    try {
+
+        let result;
+
+        if (id) {
+
+            result =
+                await supabaseClient
+                    .from("categories")
+                    .update(payload)
+                    .eq("id",id);
+
+        } else {
+
+            result =
+                await supabaseClient
+                    .from("categories")
+                    .insert(payload);
+
+        }
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        closeModal(
+            "categoryEditorModal"
+        );
+
+        await loadEverything();
+
+        renderAdminCategories();
+
+        renderAdminProducts();
+
+        showToast(
+            "Category saved permanently.",
+            "success"
+        );
+
+    } catch(error) {
+
+        console.error(error);
+
+        showToast(
+            error.message ||
+            "Could not save category.",
+            "error"
+        );
+
+    }
 
 }
-
-
-/* =========================================================
-   DELETE CATEGORY
-========================================================= */
 
 async function deleteCategory(id) {
 
     if (
         !confirm(
-            "Delete this category?"
+            "Delete this category? Products will remain but become uncategorized."
         )
-    ) return;
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-
-            .from("categories")
-
-            .delete()
-
-            .eq("id", id);
-
-
-    if (error) {
-
-        showToast(error.message);
-
+    ) {
         return;
-
     }
 
+    try {
 
-    await loadCategories();
+        const result =
+            await supabaseClient
+                .from("categories")
+                .delete()
+                .eq("id",id);
 
-    await loadAdminCategories();
+        if (result.error) {
+            throw result.error;
+        }
 
-    showToast("Category deleted.");
+        await loadEverything();
 
-}
+        renderAdminCategories();
 
+        renderAdminProducts();
 
-/* =========================================================
-   ADMIN PRODUCTS
-========================================================= */
+        showToast(
+            "Category deleted.",
+            "success"
+        );
 
-async function loadAdminProducts() {
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-
-            .from("products")
-
-            .select("*")
-
-            .order("sort_order");
-
-
-    if (error) {
+    } catch(error) {
 
         console.error(error);
 
+        showToast(
+            error.message ||
+            "Could not delete category.",
+            "error"
+        );
+
+    }
+
+}
+
+async function moveCategory(
+    id,
+    direction
+) {
+
+    const sorted =
+        [...categories]
+            .sort(
+                (a,b) =>
+                    Number(a.sort_order || 0)
+                    -
+                    Number(b.sort_order || 0)
+            );
+
+    const index =
+        sorted.findIndex(
+            c =>
+                Number(c.id)
+                ===
+                Number(id)
+        );
+
+    const otherIndex =
+        index + direction;
+
+    if (
+        index < 0 ||
+        otherIndex < 0 ||
+        otherIndex >= sorted.length
+    ) {
+        return;
+    }
+
+    const current =
+        sorted[index];
+
+    const other =
+        sorted[otherIndex];
+
+    const currentOrder =
+        current.sort_order;
+
+    await Promise.all([
+
+        supabaseClient
+            .from("categories")
+            .update({
+                sort_order:
+                    other.sort_order
+            })
+            .eq("id",current.id),
+
+        supabaseClient
+            .from("categories")
+            .update({
+                sort_order:
+                    currentOrder
+            })
+            .eq("id",other.id)
+
+    ]);
+
+    await loadEverything();
+
+    renderAdminCategories();
+
+}
+
+function renderAdminCategories() {
+
+    const sorted =
+        [...categories].sort(
+            (a,b) =>
+                Number(a.sort_order || 0)
+                -
+                Number(b.sort_order || 0)
+        );
+
+    if (!sorted.length) {
+
+        $("adminCategories").innerHTML =
+            `<div class="empty-state">
+                No categories yet.
+            </div>`;
+
         return;
 
     }
 
+    $("adminCategories").innerHTML =
+        sorted.map(
+            (category,index) => `
 
-    products = data || [];
+                <div class="admin-list-item">
 
-    renderAdminProducts();
+                    <div class="admin-list-main">
 
-}
+                        <div>
 
+                            <strong>
+                                ${escapeHTML(
+                                    localized(category.name)
+                                )}
+                            </strong>
 
-function renderAdminProducts() {
+                            <div class="small-text">
 
-    const container =
-        $("admin-products");
+                                FR:
+                                ${escapeHTML(
+                                    category.name?.fr || ""
+                                )}
 
+                                ·
 
-    container.innerHTML = "";
+                                EN:
+                                ${escapeHTML(
+                                    category.name?.en || ""
+                                )}
 
+                                ·
 
-    products.forEach(product => {
+                                AR:
+                                ${escapeHTML(
+                                    category.name?.ar || ""
+                                )}
 
-        const div =
-            document.createElement("div");
+                            </div>
 
+                        </div>
 
-        div.className =
-            "admin-product-card";
+                        <span>
+                            ${
+                                category.active
+                                ? "Visible"
+                                : "Hidden"
+                            }
+                        </span>
 
+                    </div>
 
-        div.innerHTML = `
+                    <div class="admin-actions">
 
-            <img
-                src="${
-                    escapeHTML(
-                        product.image_url
-                        ||
-                        "https://placehold.co/300x200"
-                    )
-                }"
-                alt=""
-            >
+                        <button
+                            onclick="openCategoryEditor(${category.id})"
+                        >
+                            Edit
+                        </button>
 
+                        <button
+                            onclick="moveCategory(${category.id},-1)"
+                        >
+                            ↑
+                        </button>
 
-            <div>
+                        <button
+                            onclick="moveCategory(${category.id},1)"
+                        >
+                            ↓
+                        </button>
 
-                <strong>
-                    ${escapeHTML(
-                        product.name_fr
-                    )}
-                </strong>
+                        <button
+                            onclick="toggleCategory(${category.id})"
+                        >
+                            ${
+                                category.active
+                                    ? "Hide"
+                                    : "Show"
+                            }
+                        </button>
 
-                <div>
-                    ${Number(
-                        product.price
-                    ).toFixed(2)} DH
+                        <button
+                            onclick="deleteCategory(${category.id})"
+                        >
+                            Delete
+                        </button>
+
+                    </div>
+
                 </div>
 
-                <small>
-                    ${
-                        product.available
-                            ? "Available"
-                            : "Unavailable"
-                    }
-                    ·
-                    ${
-                        product.visible
-                            ? "Visible"
-                            : "Hidden"
-                    }
-                </small>
-
-            </div>
-
-
-            <div class="admin-actions">
-
-                <button
-                    data-edit-product="${product.id}"
-                >
-                    Edit
-                </button>
-
-                <button
-                    data-toggle-product="${product.id}"
-                >
-                    ${
-                        product.visible
-                            ? "Hide"
-                            : "Show"
-                    }
-                </button>
-
-                <button
-                    data-delete-product="${product.id}"
-                >
-                    Delete
-                </button>
-
-            </div>
-
-        `;
-
-
-        div.querySelector(
-            "[data-edit-product]"
-        ).onclick = () => {
-
-            openProductEditor(
-                product
-            );
-
-        };
-
-
-        div.querySelector(
-            "[data-toggle-product]"
-        ).onclick = () => {
-
-            toggleProductVisibility(
-                product
-            );
-
-        };
-
-
-        div.querySelector(
-            "[data-delete-product]"
-        ).onclick = () => {
-
-            deleteProduct(
-                product.id
-            );
-
-        };
-
-
-        container.appendChild(div);
-
-    });
+            `
+        ).join("");
 
 }
 
+async function toggleCategory(id) {
 
-/* =========================================================
-   PRODUCT EDITOR
-========================================================= */
-
-function openProductEditor(
-    product = null
-) {
-
-    $("product-editor")
-        .classList.remove("hidden");
-
-
-    $("product-id").value =
-        product?.id || "";
-
-
-    $("product-fr").value =
-        product?.name_fr || "";
-
-
-    $("product-ar").value =
-        product?.name_ar || "";
-
-
-    $("product-en").value =
-        product?.name_en || "";
-
-
-    $("product-description-fr").value =
-        product?.description_fr || "";
-
-
-    $("product-description-ar").value =
-        product?.description_ar || "";
-
-
-    $("product-description-en").value =
-        product?.description_en || "";
-
-
-    $("product-price").value =
-        product?.price || 0;
-
-
-    $("product-image-url").value =
-        product?.image_url || "";
-
-
-    $("product-visible").checked =
-        product?.visible !== false;
-
-
-    $("product-available").checked =
-        product?.available !== false;
-
-
-    $("product-featured").checked =
-        product?.featured === true;
-
-
-    const select =
-        $("product-category");
-
-
-    select.innerHTML = "";
-
-
-    categories.forEach(category => {
-
-        const option =
-            document.createElement("option");
-
-
-        option.value =
-            category.id;
-
-
-        option.textContent =
-            category.name_fr;
-
-
-        if (
-            product?.category_id
-            === category.id
-        ) {
-
-            option.selected =
-                true;
-
-        }
-
-
-        select.appendChild(
-            option
+    const category =
+        categories.find(
+            c =>
+                Number(c.id)
+                ===
+                Number(id)
         );
 
-    });
+    if (!category) return;
+
+    const result =
+        await supabaseClient
+            .from("categories")
+            .update({
+                active:
+                    !category.active
+            })
+            .eq("id",id);
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    await loadEverything();
+
+    renderAdminCategories();
 
 }
 
+/* ============================================================
+   PRODUCT ADMIN
+   ============================================================ */
+
+function populateProductCategorySelect() {
+
+    const sorted =
+        [...categories]
+            .sort(
+                (a,b) =>
+                    Number(a.sort_order || 0)
+                    -
+                    Number(b.sort_order || 0)
+            );
+
+    $("productCategory").innerHTML =
+        `
+            <option value="">
+                Uncategorized
+            </option>
+        `
+        +
+        sorted.map(
+            category => `
+
+                <option
+                    value="${category.id}"
+                >
+                    ${escapeHTML(
+                        localized(category.name)
+                    )}
+                </option>
+
+            `
+        ).join("");
+
+}
+
+function openProductEditor(id = null) {
+
+    populateProductCategorySelect();
+
+    const product =
+        id === null
+            ? null
+            :
+            products.find(
+                p =>
+                    Number(p.id)
+                    ===
+                    Number(id)
+            );
+
+    $("productEditorTitle").textContent =
+        product
+            ? "Edit Product"
+            : "Add Product";
+
+    $("editProductId").value =
+        product?.id || "";
+
+    $("productNameFr").value =
+        product?.name?.fr || "";
+
+    $("productNameEn").value =
+        product?.name?.en || "";
+
+    $("productNameAr").value =
+        product?.name?.ar || "";
+
+    $("productDescFr").value =
+        product?.description?.fr || "";
+
+    $("productDescEn").value =
+        product?.description?.en || "";
+
+    $("productDescAr").value =
+        product?.description?.ar || "";
+
+    $("productCategory").value =
+        product?.category_id || "";
+
+    $("productPrice").value =
+        product?.price ?? "";
+
+    $("productSalePrice").value =
+        product?.sale_price ?? "";
+
+    $("productStock").value =
+        product?.stock ?? 0;
+
+    $("productBadge").value =
+        product?.badge || "";
+
+    $("productSort").value =
+        product?.sort_order ?? 0;
+
+    $("productImageUrl").value =
+        product?.image_url || "";
+
+    $("productActive").checked =
+        product
+            ? Boolean(product.active)
+            : true;
+
+    openModal(
+        "productEditorModal"
+    );
+
+}
 
 async function saveProduct(event) {
 
     event.preventDefault();
 
+    if (!(await verifyAdmin())) {
 
-    const id =
-        $("product-id").value;
+        showToast(
+            "Admin authentication required.",
+            "error"
+        );
 
-
-    let imageUrl =
-        $("product-image-url")
-            .value.trim();
-
-
-    const imageFile =
-        $("product-image-file")
-            .files[0];
-
-
-    if (imageFile) {
-
-        imageUrl =
-            await uploadMedia(
-                imageFile,
-                "images"
-            );
+        return;
 
     }
 
+    const id =
+        $("editProductId").value;
 
-    const product = {
+    const price =
+        Number(
+            $("productPrice").value
+        );
+
+    const saleRaw =
+        $("productSalePrice").value;
+
+    const sale =
+        saleRaw === ""
+            ? null
+            : Number(saleRaw);
+
+    if (
+        !Number.isFinite(price)
+        ||
+        price < 0
+    ) {
+
+        showToast(
+            "Invalid price.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (
+        sale !== null
+        &&
+        (
+            !Number.isFinite(sale)
+            ||
+            sale < 0
+            ||
+            sale >= price
+        )
+    ) {
+
+        showToast(
+            "Sale price must be lower than the normal price.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const payload = {
 
         category_id:
-            $("product-category").value
-            || null,
+            $("productCategory").value
+                ?
+                Number(
+                    $("productCategory").value
+                )
+                :
+                null,
 
-        name_fr:
-            $("product-fr").value.trim(),
+        name: {
 
-        name_ar:
-            $("product-ar").value.trim(),
+            fr:
+                $("productNameFr")
+                    .value
+                    .trim(),
 
-        name_en:
-            $("product-en").value.trim(),
+            en:
+                $("productNameEn")
+                    .value
+                    .trim()
+                ||
+                $("productNameFr")
+                    .value
+                    .trim(),
 
-        description_fr:
-            $("product-description-fr")
-                .value.trim(),
+            ar:
+                $("productNameAr")
+                    .value
+                    .trim()
+                ||
+                $("productNameFr")
+                    .value
+                    .trim()
 
-        description_ar:
-            $("product-description-ar")
-                .value.trim(),
+        },
 
-        description_en:
-            $("product-description-en")
-                .value.trim(),
+        description: {
 
-        price:
-            Number(
-                $("product-price").value
-            ),
+            fr:
+                $("productDescFr")
+                    .value
+                    .trim(),
+
+            en:
+                $("productDescEn")
+                    .value
+                    .trim(),
+
+            ar:
+                $("productDescAr")
+                    .value
+                    .trim()
+
+        },
+
+        price,
+
+        sale_price: sale,
 
         image_url:
-            imageUrl,
+            $("productImageUrl")
+                .value
+                .trim()
+            ||
+            null,
 
-        visible:
-            $("product-visible").checked,
+        active:
+            $("productActive")
+                .checked,
 
-        available:
-            $("product-available").checked,
+        stock:
+            Math.max(
+                0,
+                Number(
+                    $("productStock").value || 0
+                )
+            ),
 
-        featured:
-            $("product-featured").checked,
+        badge:
+            $("productBadge").value
+            ||
+            null,
 
-        updated_at:
-            new Date().toISOString()
+        sort_order:
+            Number(
+                $("productSort").value || 0
+            )
 
     };
 
+    try {
 
-    let error;
+        let result;
 
+        if (id) {
 
-    if (id) {
+            result =
+                await supabaseClient
+                    .from("products")
+                    .update(payload)
+                    .eq("id",id);
 
-        ({
-            error
-        } =
-            await supabaseClient
+        } else {
 
-                .from("products")
+            result =
+                await supabaseClient
+                    .from("products")
+                    .insert(payload);
 
-                .update(product)
+        }
 
-                .eq("id", id));
+        if (result.error) {
+            throw result.error;
+        }
 
-    } else {
+        closeModal(
+            "productEditorModal"
+        );
 
-        ({
-            error
-        } =
-            await supabaseClient
+        await loadEverything();
 
-                .from("products")
+        renderAdminProducts();
 
-                .insert(product));
+        showToast(
+            "Product saved permanently.",
+            "success"
+        );
+
+    } catch(error) {
+
+        console.error(error);
+
+        showToast(
+            error.message ||
+            "Could not save product.",
+            "error"
+        );
 
     }
-
-
-    if (error) {
-
-        showToast(error.message);
-
-        return;
-
-    }
-
-
-    $("product-editor")
-        .classList.add("hidden");
-
-
-    $("product-image-file").value =
-        "";
-
-
-    await loadProducts();
-
-    await loadAdminProducts();
-
-    updateStats();
-
-    showToast("Product saved!");
 
 }
-
-
-/* =========================================================
-   PRODUCT VISIBILITY
-========================================================= */
-
-async function toggleProductVisibility(
-    product
-) {
-
-    const {
-        error
-    } =
-        await supabaseClient
-
-            .from("products")
-
-            .update({
-
-                visible:
-                    !product.visible
-
-            })
-
-            .eq(
-                "id",
-                product.id
-            );
-
-
-    if (error) {
-
-        showToast(error.message);
-
-        return;
-
-    }
-
-
-    await loadProducts();
-
-    await loadAdminProducts();
-
-}
-
-
-/* =========================================================
-   DELETE PRODUCT
-========================================================= */
 
 async function deleteProduct(id) {
 
     if (
         !confirm(
-            "Delete this product?"
+            "Delete this product permanently?"
         )
-    ) return;
+    ) {
+        return;
+    }
 
-
-    const {
-        error
-    } =
+    const result =
         await supabaseClient
-
             .from("products")
-
             .delete()
+            .eq("id",id);
 
-            .eq("id", id);
+    if (result.error) {
 
-
-    if (error) {
-
-        showToast(error.message);
+        showToast(
+            result.error.message,
+            "error"
+        );
 
         return;
 
     }
 
+    await loadEverything();
 
-    await loadProducts();
+    renderAdminProducts();
 
-    await loadAdminProducts();
-
-    updateStats();
-
-    showToast("Product deleted.");
+    showToast(
+        "Product deleted.",
+        "success"
+    );
 
 }
 
+async function toggleProduct(id) {
 
-/* =========================================================
-   UPLOAD MEDIA
-========================================================= */
+    const product =
+        products.find(
+            p =>
+                Number(p.id)
+                ===
+                Number(id)
+        );
 
-async function uploadMedia(
-    file,
-    folder
+    if (!product) return;
+
+    const result =
+        await supabaseClient
+            .from("products")
+            .update({
+                active:
+                    !product.active
+            })
+            .eq("id",id);
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    await loadEverything();
+
+    renderAdminProducts();
+
+}
+
+async function moveProduct(
+    id,
+    direction
 ) {
 
-    if (!file) return "";
+    const sorted =
+        [...products].sort(
+            (a,b) =>
+                Number(a.sort_order || 0)
+                -
+                Number(b.sort_order || 0)
+        );
 
+    const index =
+        sorted.findIndex(
+            p =>
+                Number(p.id)
+                ===
+                Number(id)
+        );
 
-    const extension =
-        file.name
-            .split(".")
-            .pop()
-            .toLowerCase();
+    const otherIndex =
+        index + direction;
 
+    if (
+        index < 0
+        ||
+        otherIndex < 0
+        ||
+        otherIndex >= sorted.length
+    ) {
+        return;
+    }
 
-    const fileName =
-        `${folder}/${crypto.randomUUID()}.${extension}`;
+    const current =
+        sorted[index];
 
+    const other =
+        sorted[otherIndex];
 
-    const {
-        error
-    } =
-        await supabaseClient
+    const currentOrder =
+        current.sort_order;
 
-            .storage
+    await Promise.all([
 
-            .from(
-                "restaurant-media"
-            )
+        supabaseClient
+            .from("products")
+            .update({
+                sort_order:
+                    other.sort_order
+            })
+            .eq("id",current.id),
 
-            .upload(
-                fileName,
-                file,
-                {
-                    upsert: false,
+        supabaseClient
+            .from("products")
+            .update({
+                sort_order:
+                    currentOrder
+            })
+            .eq("id",other.id)
 
-                    contentType:
-                        file.type
-                }
+    ]);
+
+    await loadEverything();
+
+    renderAdminProducts();
+
+}
+
+function renderAdminProducts() {
+
+    const sorted =
+        [...products].sort(
+            (a,b) =>
+                Number(a.sort_order || 0)
+                -
+                Number(b.sort_order || 0)
+        );
+
+    if (!sorted.length) {
+
+        $("adminProducts").innerHTML =
+            `
+                <div class="empty-state">
+                    No products yet.
+                </div>
+            `;
+
+        return;
+
+    }
+
+    $("adminProducts").innerHTML =
+        sorted.map(
+            product => {
+
+                const category =
+                    categories.find(
+                        c =>
+                            Number(c.id)
+                            ===
+                            Number(
+                                product.category_id
+                            )
+                    );
+
+                return `
+
+                    <div class="admin-list-item">
+
+                        <div class="admin-list-main">
+
+                            <div>
+
+                                <strong>
+                                    ${escapeHTML(
+                                        localized(product.name)
+                                    )}
+                                </strong>
+
+                                <div class="small-text">
+
+                                    Category:
+                                    ${
+                                        category
+                                        ?
+                                        escapeHTML(
+                                            localized(
+                                                category.name
+                                            )
+                                        )
+                                        :
+                                        "Uncategorized"
+                                    }
+
+                                </div>
+
+                                <div>
+
+                                    ${
+                                        product.sale_price
+                                        ?
+                                        `<span class="old-price">
+                                            ${currency(product.price)}
+                                        </span>`
+                                        :
+                                        ""
+                                    }
+
+                                    <strong>
+                                        ${currency(
+                                            productPrice(product)
+                                        )}
+                                    </strong>
+
+                                </div>
+
+                                <div class="small-text">
+                                    Stock:
+                                    ${product.stock}
+                                </div>
+
+                            </div>
+
+                            <span>
+                                ${
+                                    product.active
+                                    ? "Visible"
+                                    : "Hidden"
+                                }
+                            </span>
+
+                        </div>
+
+                        <div class="admin-actions">
+
+                            <button
+                                onclick="openProductEditor(${product.id})"
+                            >
+                                Edit
+                            </button>
+
+                            <button
+                                onclick="moveProduct(${product.id},-1)"
+                            >
+                                ↑
+                            </button>
+
+                            <button
+                                onclick="moveProduct(${product.id},1)"
+                            >
+                                ↓
+                            </button>
+
+                            <button
+                                onclick="toggleProduct(${product.id})"
+                            >
+                                ${
+                                    product.active
+                                        ? "Hide"
+                                        : "Show"
+                                }
+                            </button>
+
+                            <button
+                                onclick="deleteProduct(${product.id})"
+                            >
+                                Delete
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
+
+}
+
+/* ============================================================
+   DELIVERY ADMIN
+   ============================================================ */
+
+function renderDeliveryEditor() {
+
+    $("dDeliveryEnabled").checked =
+        Boolean(settings.delivery_enabled);
+
+    $("dPickupEnabled").checked =
+        Boolean(settings.pickup_enabled);
+
+    $("dRequireLocation").checked =
+        Boolean(settings.require_customer_location);
+
+    $("dLatitude").value =
+        settings.latitude ?? "";
+
+    $("dLongitude").value =
+        settings.longitude ?? "";
+
+    $("dMaxKm").value =
+        settings.max_delivery_km ?? 10;
+
+    $("dDefaultFee").value =
+        settings.delivery_fee ?? 0;
+
+    $("dFreeAbove").value =
+        settings.free_delivery_above ?? 0;
+
+    $("dMinimumOrder").value =
+        settings.minimum_order ?? 0;
+
+    renderDeliveryTiers();
+
+}
+
+function renderDeliveryTiers() {
+
+    const tiers =
+        Array.isArray(settings.delivery_tiers)
+            ?
+            settings.delivery_tiers
+            :
+            [];
+
+    $("deliveryTiersEditor").innerHTML =
+        tiers.map(
+            (tier,index) => `
+
+                <div class="delivery-tier">
+
+                    <label>
+                        Up to km
+                        <input
+                            data-tier-km="${index}"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value="${Number(
+                                tier.max_km || 0
+                            )}"
+                        >
+                    </label>
+
+                    <label>
+                        Fee
+                        <input
+                            data-tier-fee="${index}"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value="${Number(
+                                tier.fee || 0
+                            )}"
+                        >
+                    </label>
+
+                    <button
+                        type="button"
+                        onclick="removeDeliveryTier(${index})"
+                    >
+                        Delete
+                    </button>
+
+                </div>
+
+            `
+        ).join("");
+
+}
+
+function addDeliveryTier() {
+
+    if (!Array.isArray(settings.delivery_tiers)) {
+        settings.delivery_tiers = [];
+    }
+
+    settings.delivery_tiers.push({
+        max_km: 5,
+        fee: 15
+    });
+
+    renderDeliveryTiers();
+
+}
+
+function removeDeliveryTier(index) {
+
+    settings.delivery_tiers.splice(
+        index,
+        1
+    );
+
+    renderDeliveryTiers();
+
+}
+
+function useRestaurantLocation() {
+
+    if (!navigator.geolocation) {
+
+        showToast(
+            "Geolocation is not supported.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    navigator.geolocation.getCurrentPosition(
+
+        position => {
+
+            $("dLatitude").value =
+                position.coords.latitude;
+
+            $("dLongitude").value =
+                position.coords.longitude;
+
+            showToast(
+                "Restaurant location detected.",
+                "success"
             );
 
+        },
 
-    if (error) {
+        error => {
+
+            console.error(error);
+
+            showToast(
+                "Could not get location.",
+                "error"
+            );
+
+        },
+
+        {
+            enableHighAccuracy:true,
+            timeout:10000
+        }
+
+    );
+
+}
+
+async function saveDeliverySettings(event) {
+
+    event.preventDefault();
+
+    try {
+
+        const tiers = [];
+
+        document.querySelectorAll(
+            "[data-tier-km]"
+        ).forEach(input => {
+
+            const index =
+                Number(
+                    input.dataset.tierKm
+                );
+
+            if (!tiers[index]) {
+                tiers[index] = {};
+            }
+
+            tiers[index].max_km =
+                Number(input.value || 0);
+
+        });
+
+        document.querySelectorAll(
+            "[data-tier-fee]"
+        ).forEach(input => {
+
+            const index =
+                Number(
+                    input.dataset.tierFee
+                );
+
+            if (!tiers[index]) {
+                tiers[index] = {};
+            }
+
+            tiers[index].fee =
+                Number(input.value || 0);
+
+        });
+
+        const cleanTiers =
+            tiers
+                .filter(
+                    tier =>
+                        Number(tier.max_km) > 0
+                )
+                .sort(
+                    (a,b) =>
+                        Number(a.max_km)
+                        -
+                        Number(b.max_km)
+                );
+
+        const payload = {
+
+            delivery_enabled:
+                $("dDeliveryEnabled")
+                    .checked,
+
+            pickup_enabled:
+                $("dPickupEnabled")
+                    .checked,
+
+            require_customer_location:
+                $("dRequireLocation")
+                    .checked,
+
+            latitude:
+                $("dLatitude").value === ""
+                    ? null
+                    : Number(
+                        $("dLatitude").value
+                    ),
+
+            longitude:
+                $("dLongitude").value === ""
+                    ? null
+                    : Number(
+                        $("dLongitude").value
+                    ),
+
+            max_delivery_km:
+                Number(
+                    $("dMaxKm").value || 0
+                ),
+
+            delivery_fee:
+                Number(
+                    $("dDefaultFee").value || 0
+                ),
+
+            free_delivery_above:
+                Number(
+                    $("dFreeAbove").value || 0
+                ),
+
+            minimum_order:
+                Number(
+                    $("dMinimumOrder").value || 0
+                ),
+
+            delivery_tiers:
+                cleanTiers
+
+        };
+
+        const result =
+            await supabaseClient
+                .from("site_settings")
+                .update(payload)
+                .eq("id",1);
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        await loadEverything();
+
+        renderDeliveryEditor();
+
+        showToast(
+            "Delivery settings saved permanently.",
+            "success"
+        );
+
+    } catch(error) {
 
         console.error(error);
 
         showToast(
-            "Upload failed: " +
-            error.message
+            error.message ||
+            "Could not save delivery settings.",
+            "error"
         );
-
-        return "";
 
     }
 
+}
 
-    const {
-        data
-    } =
-        supabaseClient
+/* ============================================================
+   PAYMENT ADMIN
+   ============================================================ */
 
-            .storage
+function renderPaymentAdmin() {
 
-            .from(
-                "restaurant-media"
-            )
+    $("pPaypalEnabled").checked =
+        Boolean(settings.paypal_enabled);
 
-            .getPublicUrl(
-                fileName
-            );
+    $("pPaypalEmail").value =
+        settings.paypal_email || "";
 
+    $("pPaypalUrl").value =
+        settings.paypal_payment_url || "";
 
-    return data.publicUrl;
+    $("pPaypalInstructions").value =
+        settings.paypal_instructions || "";
+
+    $("pCashEnabled").checked =
+        Boolean(settings.cash_enabled);
 
 }
 
+async function savePaymentSettings(event) {
 
-/* =========================================================
-   ADMIN ORDERS
-========================================================= */
+    event.preventDefault();
 
-async function loadAdminOrders() {
+    const paypalEmail =
+        $("pPaypalEmail").value.trim();
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
+    const paypalUrl =
+        $("pPaypalUrl").value.trim();
 
-            .from("orders")
+    if (
+        $("pPaypalEnabled").checked
+        &&
+        !paypalEmail
+        &&
+        !paypalUrl
+    ) {
 
-            .select(`
+        showToast(
+            "Add a PayPal email or PayPal payment URL first.",
+            "error"
+        );
 
-                *,
+        return;
 
-                order_items (
+    }
 
-                    id,
+    try {
 
-                    product_name,
+        const payload = {
 
-                    quantity,
+            paypal_enabled:
+                $("pPaypalEnabled").checked,
 
-                    unit_price,
+            paypal_email:
+                paypalEmail || null,
 
-                    total_price
+            paypal_payment_url:
+                paypalUrl || null,
 
-                )
+            paypal_instructions:
+                $("pPaypalInstructions")
+                    .value
+                    .trim(),
 
-            `)
+            cash_enabled:
+                $("pCashEnabled")
+                    .checked
 
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+        };
 
+        const result =
+            await supabaseClient
+                .from("site_settings")
+                .update(payload)
+                .eq("id",1);
 
-    if (error) {
+        if (result.error) {
+            throw result.error;
+        }
+
+        await loadEverything();
+
+        renderPaymentAdmin();
+
+        showToast(
+            "Payment settings saved permanently.",
+            "success"
+        );
+
+    } catch(error) {
 
         console.error(error);
 
-        return;
-
-    }
-
-
-    orders = data || [];
-
-    renderOrders();
-
-}
-
-
-/* =========================================================
-   RENDER ORDERS
-========================================================= */
-
-function renderOrders() {
-
-    const container =
-        $("orders-list");
-
-
-    container.innerHTML = "";
-
-
-    const newOrders =
-        orders.filter(
-            order =>
-                order.status === "new"
+        showToast(
+            error.message ||
+            "Could not save payment settings.",
+            "error"
         );
 
+    }
 
-    $("admin-order-count")
-        .textContent =
-        newOrders.length;
+}
 
+/* ============================================================
+   APPEARANCE
+   ============================================================ */
 
-    newOrders.forEach(order => {
+function renderAppearanceAdmin() {
 
-        if (
-            Notification.permission
-            === "granted"
-        ) {
+    $("aPrimaryColor").value =
+        settings.primary_color ||
+        "#e85d04";
 
-            /*
-                Notification is only sent for
-                realtime events below.
-            */
+    $("aSecondaryColor").value =
+        settings.secondary_color ||
+        "#ffba08";
 
+    $("aBackgroundColor").value =
+        settings.background_color ||
+        "#fffaf4";
+
+    $("aFontFamily").value =
+        settings.font_family ||
+        "Inter";
+
+    $("aLogoUrl").value =
+        settings.logo_url || "";
+
+    $("aFaviconUrl").value =
+        settings.favicon_url || "";
+
+    $("aBackgroundImage").value =
+        settings.background_image_url ||
+        "";
+
+    $("aBackgroundVideo").value =
+        settings.background_video_url ||
+        "";
+
+}
+
+async function saveAppearance(event) {
+
+    event.preventDefault();
+
+    try {
+
+        const payload = {
+
+            primary_color:
+                $("aPrimaryColor").value,
+
+            secondary_color:
+                $("aSecondaryColor").value,
+
+            background_color:
+                $("aBackgroundColor").value,
+
+            font_family:
+                $("aFontFamily").value,
+
+            logo_url:
+                $("aLogoUrl").value.trim()
+                ||
+                null,
+
+            favicon_url:
+                $("aFaviconUrl").value.trim()
+                ||
+                null,
+
+            background_image_url:
+                $("aBackgroundImage")
+                    .value
+                    .trim()
+                ||
+                null,
+
+            background_video_url:
+                $("aBackgroundVideo")
+                    .value
+                    .trim()
+                ||
+                null
+
+        };
+
+        const result =
+            await supabaseClient
+                .from("site_settings")
+                .update(payload)
+                .eq("id",1);
+
+        if (result.error) {
+            throw result.error;
         }
 
-    });
+        await loadEverything();
 
+        renderAppearanceAdmin();
 
-    if (orders.length === 0) {
+        showToast(
+            "Appearance saved permanently.",
+            "success"
+        );
 
-        container.innerHTML =
-            "<p>No orders yet.</p>";
+    } catch(error) {
+
+        console.error(error);
+
+        showToast(
+            error.message ||
+            "Could not save appearance.",
+            "error"
+        );
+
+    }
+
+}
+
+/* ============================================================
+   ADMIN ORDERS
+   ============================================================ */
+
+async function loadAdminOrders() {
+
+    if (!(await verifyAdmin())) return;
+
+    const result =
+        await supabaseClient
+            .from("orders")
+            .select("*")
+            .order(
+                "created_at",
+                {ascending:false}
+            );
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
 
         return;
 
     }
 
+    orders =
+        result.data || [];
 
-    orders.forEach(order => {
+    renderAdminOrders();
 
-        const card =
-            document.createElement("article");
-
-
-        card.className =
-            "order-card";
-
-
-        const date =
-            new Date(
-                order.created_at
-            ).toLocaleString();
-
-
-        const items =
-            order.order_items
-                .map(
-                    item =>
-                        `${escapeHTML(
-                            item.product_name
-                        )} × ${item.quantity}`
-                )
-                .join("<br>");
-
-
-        card.innerHTML = `
-
-            <div>
-
-                <span class="order-status">
-                    ${escapeHTML(
-                        order.status
-                    )}
-                </span>
-
-            </div>
-
-
-            <h3>
-                ${escapeHTML(
-                    order.customer_name
-                )}
-            </h3>
-
-
-            <p>
-                📞
-                ${escapeHTML(
-                    order.customer_phone
-                )}
-            </p>
-
-
-            <p>
-                📍
-                ${escapeHTML(
-                    order.customer_address
-                )}
-            </p>
-
-
-            <p>
-                🕐
-                ${escapeHTML(date)}
-            </p>
-
-
-            <div class="order-items">
-                ${items}
-            </div>
-
-
-            <strong>
-                ${Number(
-                    order.total
-                ).toFixed(2)} DH
-            </strong>
-
-
-            <div class="order-actions">
-
-                <button
-                    data-status="accepted"
-                    data-order="${order.id}"
-                >
-                    Accept
-                </button>
-
-                <button
-                    data-status="preparing"
-                    data-order="${order.id}"
-                >
-                    Preparing
-                </button>
-
-                <button
-                    data-status="ready"
-                    data-order="${order.id}"
-                >
-                    Ready
-                </button>
-
-                <button
-                    data-status="out_for_delivery"
-                    data-order="${order.id}"
-                >
-                    Out for delivery
-                </button>
-
-                <button
-                    data-status="completed"
-                    data-order="${order.id}"
-                >
-                    Completed
-                </button>
-
-                <button
-                    data-status="cancelled"
-                    data-order="${order.id}"
-                >
-                    Cancel
-                </button>
-
-            </div>
-
-        `;
-
-
-        card
-            .querySelectorAll(
-                "[data-status]"
-            )
-            .forEach(button => {
-
-                button.onclick = () => {
-
-                    updateOrderStatus(
-
-                        button.dataset.order,
-
-                        button.dataset.status
-
-                    );
-
-                };
-
-            });
-
-
-        container.appendChild(card);
-
-    });
+    renderDashboard();
 
 }
 
+function renderAdminOrders() {
 
-/* =========================================================
-   UPDATE ORDER STATUS
-========================================================= */
+    const filter =
+        $("orderFilter")?.value ||
+        "all";
+
+    let filtered =
+        [...orders];
+
+    if (filter !== "all") {
+
+        filtered =
+            filtered.filter(
+                order =>
+                    order.status === filter
+            );
+
+    }
+
+    if (!filtered.length) {
+
+        $("adminOrders").innerHTML =
+            `
+                <div class="empty-state">
+                    No orders found.
+                </div>
+            `;
+
+        return;
+
+    }
+
+    $("adminOrders").innerHTML =
+        filtered.map(
+            order => {
+
+                const items =
+                    Array.isArray(order.items)
+                        ? order.items
+                        : [];
+
+                return `
+
+                    <div class="admin-list-item">
+
+                        <div class="admin-list-main">
+
+                            <div>
+
+                                <strong>
+                                    ${escapeHTML(
+                                        order.order_number
+                                    )}
+                                </strong>
+
+                                <div>
+                                    ${escapeHTML(
+                                        order.customer_name
+                                    )}
+                                </div>
+
+                                <div>
+                                    📞
+                                    ${escapeHTML(
+                                        order.phone
+                                    )}
+                                </div>
+
+                                <div class="small-text">
+                                    ${
+                                        new Date(
+                                            order.created_at
+                                        ).toLocaleString()
+                                    }
+                                </div>
+
+                            </div>
+
+                            <strong>
+                                ${currency(order.total)}
+                            </strong>
+
+                        </div>
+
+                        <div class="order-details">
+
+                            <div>
+                                <strong>
+                                    Items
+                                </strong>
+                            </div>
+
+                            ${items.map(
+                                item => `
+
+                                    <div class="order-product">
+
+                                        <span>
+                                            ${escapeHTML(
+                                                localized(
+                                                    item.name
+                                                )
+                                            )}
+                                            ×
+                                            ${item.quantity}
+                                        </span>
+
+                                        <strong>
+                                            ${currency(
+                                                Number(item.price)
+                                                *
+                                                Number(item.quantity)
+                                            )}
+                                        </strong>
+
+                                    </div>
+
+                                `
+                            ).join("")}
+
+                            <hr>
+
+                            <div>
+                                Payment:
+                                <strong>
+                                    ${escapeHTML(
+                                        order.payment_method
+                                    )}
+                                </strong>
+
+                                ·
+
+                                ${
+                                    escapeHTML(
+                                        order.payment_status
+                                    )
+                                }
+                            </div>
+
+                            <div>
+                                ${
+                                    order.fulfillment_method
+                                }
+                                ${
+                                    order.delivery_distance_km !== null
+                                    ?
+                                    ` · ${Number(
+                                        order.delivery_distance_km
+                                    ).toFixed(1)} km`
+                                    :
+                                    ""
+                                }
+                            </div>
+
+                            ${
+                                order.address
+                                ?
+                                `<div>
+                                    📍
+                                    ${escapeHTML(
+                                        order.address
+                                    )}
+                                    ${
+                                        order.city
+                                        ?
+                                        `, ${escapeHTML(
+                                            order.city
+                                        )}`
+                                        :
+                                        ""
+                                    }
+                                </div>`
+                                :
+                                ""
+                            }
+
+                            ${
+                                order.note
+                                ?
+                                `<div>
+                                    Note:
+                                    ${escapeHTML(
+                                        order.note
+                                    )}
+                                </div>`
+                                :
+                                ""
+                            }
+
+                        </div>
+
+                        <div class="admin-actions">
+
+                            <select
+                                class="status-select"
+                                onchange="updateOrderStatus(
+                                    ${order.id},
+                                    this.value
+                                )"
+                            >
+
+                                ${
+                                    [
+                                        "pending",
+                                        "confirmed",
+                                        "preparing",
+                                        "ready",
+                                        "completed",
+                                        "cancelled"
+                                    ]
+                                    .map(
+                                        status => `
+
+                                            <option
+                                                value="${status}"
+                                                ${
+                                                    order.status === status
+                                                    ? "selected"
+                                                    : ""
+                                                }
+                                            >
+                                                ${status}
+                                            </option>
+
+                                        `
+                                    )
+                                    .join("")
+                                }
+
+                            </select>
+
+                            <select
+                                class="status-select"
+                                onchange="updatePaymentStatus(
+                                    ${order.id},
+                                    this.value
+                                )"
+                            >
+
+                                ${
+                                    [
+                                        "unpaid",
+                                        "pending",
+                                        "paid",
+                                        "failed"
+                                    ]
+                                    .map(
+                                        status => `
+
+                                            <option
+                                                value="${status}"
+                                                ${
+                                                    order.payment_status === status
+                                                    ? "selected"
+                                                    : ""
+                                                }
+                                            >
+                                                Payment:
+                                                ${status}
+                                            </option>
+
+                                        `
+                                    )
+                                    .join("")
+                                }
+
+                            </select>
+
+                            <button
+                                onclick="deleteOrder(${order.id})"
+                            >
+                                Delete
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
+
+}
 
 async function updateOrderStatus(
-    orderId,
+    id,
     status
 ) {
 
-    const {
-        error
-    } =
+    const result =
         await supabaseClient
-
             .from("orders")
-
             .update({
-
-                status,
-
-                updated_at:
-                    new Date().toISOString()
-
+                status
             })
+            .eq("id",id);
 
-            .eq(
-                "id",
-                orderId
-            );
+    if (result.error) {
 
-
-    if (error) {
-
-        showToast(error.message);
+        showToast(
+            result.error.message,
+            "error"
+        );
 
         return;
 
     }
 
+    const order =
+        orders.find(
+            o => Number(o.id) === Number(id)
+        );
 
-    await loadAdminOrders();
+    if (order) {
+        order.status = status;
+    }
 
-    updateStats();
+    renderAdminOrders();
 
-}
-
-
-/* =========================================================
-   REALTIME ORDERS
-========================================================= */
-
-function subscribeToOrders() {
-
-    supabaseClient
-
-        .channel(
-            "restaurant-orders"
-        )
-
-        .on(
-
-            "postgres_changes",
-
-            {
-
-                event: "INSERT",
-
-                schema: "public",
-
-                table: "orders"
-
-            },
-
-            payload => {
-
-                handleNewOrderNotification();
-
-                loadAdminOrders();
-
-                updateStats();
-
-            }
-
-        )
-
-        .subscribe();
+    renderDashboard();
 
 }
 
+async function updatePaymentStatus(
+    id,
+    payment_status
+) {
 
-async function handleNewOrderNotification() {
+    const result =
+        await supabaseClient
+            .from("orders")
+            .update({
+                payment_status
+            })
+            .eq("id",id);
 
-    showToast(
-        "🔔 New order!"
-    );
+    if (result.error) {
 
+        showToast(
+            result.error.message,
+            "error"
+        );
 
-    try {
-
-        if (
-            "Notification"
-            in window
-        ) {
-
-            if (
-                Notification.permission
-                === "default"
-            ) {
-
-                await Notification.requestPermission();
-
-            }
-
-
-            if (
-                Notification.permission
-                === "granted"
-            ) {
-
-                new Notification(
-                    "New restaurant order",
-                    {
-                        body:
-                            "A new order has arrived."
-                    }
-                );
-
-            }
-
-        }
-
-    } catch (error) {
-
-        console.log(error);
+        return;
 
     }
 
+    const order =
+        orders.find(
+            o => Number(o.id) === Number(id)
+        );
 
-    playNotificationSound();
+    if (order) {
+        order.payment_status =
+            payment_status;
+    }
+
+    renderAdminOrders();
 
 }
 
+async function deleteOrder(id) {
 
-function playNotificationSound() {
+    if (
+        !confirm(
+            "Delete this order?"
+        )
+    ) {
+        return;
+    }
+
+    const result =
+        await supabaseClient
+            .from("orders")
+            .delete()
+            .eq("id",id);
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    orders =
+        orders.filter(
+            order =>
+                Number(order.id)
+                !==
+                Number(id)
+        );
+
+    renderAdminOrders();
+
+    renderDashboard();
+
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+function renderDashboard() {
+
+    const totalOrders =
+        orders.length;
+
+    const revenue =
+        orders
+            .filter(
+                order =>
+                    order.status !== "cancelled"
+            )
+            .reduce(
+                (sum,order) =>
+                    sum +
+                    Number(order.total || 0),
+                0
+            );
+
+    const pending =
+        orders.filter(
+            order =>
+                order.status === "pending"
+        ).length;
+
+    const lowStock =
+        products.filter(
+            product =>
+                Number(product.stock) <= 5
+        ).length;
+
+    $("statOrders").textContent =
+        totalOrders;
+
+    $("statRevenue").textContent =
+        currency(revenue);
+
+    $("statPending").textContent =
+        pending;
+
+    $("statLowStock").textContent =
+        lowStock;
+
+    $("recentOrders").innerHTML =
+        orders
+            .slice(0,8)
+            .map(
+                order => `
+
+                    <div class="admin-list-item">
+
+                        <div class="admin-list-main">
+
+                            <span>
+                                <strong>
+                                    ${escapeHTML(
+                                        order.order_number
+                                    )}
+                                </strong>
+
+                                <br>
+
+                                ${escapeHTML(
+                                    order.customer_name
+                                )}
+
+                            </span>
+
+                            <strong>
+                                ${currency(order.total)}
+                            </strong>
+
+                        </div>
+
+                        <div class="small-text">
+                            ${order.status}
+                        </div>
+
+                    </div>
+
+                `
+            )
+            .join("")
+        ||
+        `
+            <div class="empty-state">
+                No orders yet.
+            </div>
+        `;
+
+    $("lowStockProducts").innerHTML =
+        products
+            .filter(
+                product =>
+                    Number(product.stock) <= 5
+            )
+            .map(
+                product => `
+
+                    <div class="admin-list-item">
+
+                        <strong>
+                            ${escapeHTML(
+                                localized(product.name)
+                            )}
+                        </strong>
+
+                        <span>
+                            Stock:
+                            ${product.stock}
+                        </span>
+
+                    </div>
+
+                `
+            )
+            .join("")
+        ||
+        `
+            <div class="empty-state">
+                No low-stock products.
+            </div>
+        `;
+
+}
+
+/* ============================================================
+   ADMIN REVIEWS
+   ============================================================ */
+
+async function loadReviews() {
+
+    const isAdmin =
+        await verifyAdmin();
+
+    if (!isAdmin) return;
+
+    const result =
+        await supabaseClient
+            .from("reviews")
+            .select("*")
+            .order(
+                "created_at",
+                {ascending:false}
+            );
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    const adminReviews =
+        result.data || [];
+
+    $("adminReviews").innerHTML =
+        adminReviews.map(
+            review => `
+
+                <div class="admin-list-item">
+
+                    <div class="stars">
+                        ${"★".repeat(
+                            review.rating
+                        )}
+                        ${"☆".repeat(
+                            5 - review.rating
+                        )}
+                    </div>
+
+                    <strong>
+                        ${escapeHTML(
+                            review.customer_name
+                        )}
+                    </strong>
+
+                    <p>
+                        ${escapeHTML(
+                            review.text
+                        )}
+                    </p>
+
+                    <div class="admin-actions">
+
+                        <button
+                            onclick="toggleReviewApproval(
+                                ${review.id},
+                                ${!review.approved}
+                            )"
+                        >
+                            ${
+                                review.approved
+                                ? "Unapprove"
+                                : "Approve"
+                            }
+                        </button>
+
+                        <button
+                            onclick="deleteReview(${review.id})"
+                        >
+                            Delete
+                        </button>
+
+                    </div>
+
+                </div>
+
+            `
+        ).join("")
+        ||
+        `
+            <div class="empty-state">
+                No reviews.
+            </div>
+        `;
+
+}
+
+async function toggleReviewApproval(
+    id,
+    approved
+) {
+
+    const result =
+        await supabaseClient
+            .from("reviews")
+            .update({
+                approved
+            })
+            .eq("id",id);
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    await loadEverything();
+
+    await loadReviews();
+
+}
+
+async function deleteReview(id) {
+
+    if (!confirm("Delete this review?")) {
+        return;
+    }
+
+    const result =
+        await supabaseClient
+            .from("reviews")
+            .delete()
+            .eq("id",id);
+
+    if (result.error) {
+
+        showToast(
+            result.error.message,
+            "error"
+        );
+
+        return;
+
+    }
+
+    await loadEverything();
+
+    await loadReviews();
+
+}
+
+/* ============================================================
+   REALTIME ORDERS
+   ============================================================ */
+
+function setupRealtime() {
+
+    if (orderChannel) {
+
+        supabaseClient
+            .removeChannel(orderChannel);
+
+    }
+
+    orderChannel =
+        supabaseClient
+            .channel(
+                "restaurant-orders"
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "orders"
+                },
+                async payload => {
+
+                    console.log(
+                        "Order realtime event:",
+                        payload
+                    );
+
+                    const isAdmin =
+                        await verifyAdmin();
+
+                    if (!isAdmin) return;
+
+                    playOrderNotification();
+
+                    await loadAdminOrders();
+
+                }
+            )
+            .subscribe();
+
+}
+
+function playOrderNotification() {
 
     try {
 
-        const audioContext =
-            new (
-                window.AudioContext
-                ||
-                window.webkitAudioContext
-            )();
+        const AudioContext =
+            window.AudioContext ||
+            window.webkitAudioContext;
 
+        if (!AudioContext) return;
+
+        const audio =
+            new AudioContext();
 
         const oscillator =
-            audioContext.createOscillator();
-
+            audio.createOscillator();
 
         const gain =
-            audioContext.createGain();
+            audio.createGain();
 
-
-        oscillator.connect(
-            gain
-        );
-
+        oscillator.connect(gain);
 
         gain.connect(
-            audioContext.destination
+            audio.destination
         );
-
 
         oscillator.frequency.value =
             880;
 
-
         gain.gain.value =
-            0.1;
-
+            .08;
 
         oscillator.start();
-
 
         setTimeout(() => {
 
             oscillator.stop();
 
-        }, 300);
+            audio.close();
 
-    } catch {
+        },350);
 
-        // Browser may block sound.
+    } catch(error) {
+
+        console.log(
+            "Notification sound unavailable."
+        );
+
     }
 
 }
 
+/* ============================================================
+   CLOSE MODAL WHEN CLICKING BACKDROP
+   ============================================================ */
 
-/* =========================================================
-   STATS
-========================================================= */
+document.addEventListener(
+    "click",
+    event => {
 
-function updateStats() {
+        if (
+            event.target.classList.contains(
+                "modal"
+            )
+        ) {
 
-    $("stat-products")
-        .textContent =
-        products.length;
-
-
-    $("stat-categories")
-        .textContent =
-        categories.length;
-
-
-    $("stat-orders")
-        .textContent =
-        orders.filter(
-            order =>
-                order.status === "new"
-        ).length;
-
-}
-
-
-/* =========================================================
-   ADMIN TABS
-========================================================= */
-
-function setupAdminTabs() {
-
-    document
-        .querySelectorAll(".admin-tab")
-        .forEach(button => {
-
-            button.onclick = () => {
-
-                const tab =
-                    button.dataset.tab;
-
-
-                document
-                    .querySelectorAll(
-                        ".admin-tab"
-                    )
-                    .forEach(
-                        b =>
-                            b.classList.remove(
-                                "active"
-                            )
-                    );
-
-
-                document
-                    .querySelectorAll(
-                        ".admin-tab-content"
-                    )
-                    .forEach(
-                        content =>
-                            content.classList.remove(
-                                "active"
-                            )
-                    );
-
-
-                button.classList.add(
-                    "active"
-                );
-
-
-                document
-                    .querySelector(
-                        `[data-content="${tab}"]`
-                    )
-                    .classList.add(
-                        "active"
-                    );
-
-            };
-
-        });
-
-}
-
-
-/* =========================================================
-   UI EVENTS
-========================================================= */
-
-function setupEvents() {
-
-    /* Language */
-
-    $("language-button").onclick =
-        () => {
-
-            $("language-menu")
-                .classList.toggle(
-                    "hidden"
-                );
-
-        };
-
-
-    document
-        .querySelectorAll(
-            "[data-language]"
-        )
-        .forEach(button => {
-
-            button.onclick =
-                () => {
-
-                    changeLanguage(
-                        button.dataset.language
-                    );
-
-                };
-
-        });
-
-
-    /* Mobile menu */
-
-    $("mobile-menu-button")
-        .onclick =
-        () => {
-
-            $("mobile-nav")
-                .classList.toggle(
-                    "hidden"
-                );
-
-        };
-
-
-    /* Cart */
-
-    $("open-cart-button")
-        .onclick =
-        () => {
-
-            $("cart-drawer")
-                .classList.add(
-                    "open"
-                );
-
-            $("cart-overlay")
-                .classList.remove(
-                    "hidden"
-                );
-
-        };
-
-
-    function closeCart() {
-
-        $("cart-drawer")
-            .classList.remove(
+            event.target.classList.remove(
                 "open"
             );
 
-        $("cart-overlay")
-            .classList.add(
-                "hidden"
-            );
-
-    }
-
-
-    $("close-cart")
-        .onclick =
-        closeCart;
-
-
-    $("cart-overlay")
-        .onclick =
-        closeCart;
-
-
-    /* Checkout */
-
-    $("checkout-button")
-        .onclick =
-        () => {
-
             if (
-                cart.length === 0
+                !document.querySelector(
+                    ".modal.open"
+                )
             ) {
 
-                showToast(
-                    t("empty_cart")
-                );
-
-                return;
+                document.body.classList
+                    .remove("modal-open");
 
             }
-
-            $("checkout-modal")
-                .classList.remove(
-                    "hidden"
-                );
-
-        };
-
-
-    $("close-checkout")
-        .onclick =
-        () => {
-
-            $("checkout-modal")
-                .classList.add(
-                    "hidden"
-                );
-
-        };
-
-
-    $("checkout-form")
-        .addEventListener(
-            "submit",
-            placeOrder
-        );
-
-
-    /* Admin */
-
-    $("login-form")
-        .addEventListener(
-            "submit",
-            loginAdmin
-        );
-
-
-    $("logout-button")
-        .onclick =
-        logoutAdmin;
-
-
-    $("admin-login-close")
-        .onclick =
-        () => {
-
-            window.location.hash =
-                "";
-
-            $("admin-login")
-                .classList.add(
-                    "hidden"
-                );
-
-        };
-
-
-    $("view-site-button")
-        .onclick =
-        () => {
-
-            window.location.hash =
-                "";
-
-            closeAdminPanel();
-
-        };
-
-
-    /* General */
-
-    $("general-form")
-        .addEventListener(
-            "submit",
-            saveGeneral
-        );
-
-
-    /* Design */
-
-    $("design-form")
-        .addEventListener(
-            "submit",
-            saveDesign
-        );
-
-
-    /* Category */
-
-    $("add-category-button")
-        .onclick =
-        () => {
-
-            openCategoryEditor();
-
-        };
-
-
-    $("category-form")
-        .addEventListener(
-            "submit",
-            saveCategory
-        );
-
-
-    $("close-category-editor")
-        .onclick =
-        () => {
-
-            $("category-editor")
-                .classList.add(
-                    "hidden"
-                );
-
-        };
-
-
-    /* Product */
-
-    $("add-product-button")
-        .onclick =
-        () => {
-
-            openProductEditor();
-
-        };
-
-
-    $("product-form")
-        .addEventListener(
-            "submit",
-            saveProduct
-        );
-
-
-    $("close-product-editor")
-        .onclick =
-        () => {
-
-            $("product-editor")
-                .classList.add(
-                    "hidden"
-                );
-
-        };
-
-
-    /* Orders */
-
-    $("refresh-orders")
-        .onclick =
-        loadAdminOrders;
-
-}
-
-
-/* =========================================================
-   ADMIN HASH
-========================================================= */
-
-function checkAdminHash() {
-
-    if (
-        window.location.hash
-        === "#admin"
-    ) {
-
-        if (currentUser) {
-
-            openAdminPanel();
-
-        } else {
-
-            openAdminLogin();
 
         }
 
-    } else {
-
-        $("admin-login")
-            .classList.add(
-                "hidden"
-            );
-
-        $("admin-panel")
-            .classList.add(
-                "hidden"
-            );
-
     }
-
-}
-
-
-/* =========================================================
-   AUTH STATE
-========================================================= */
-
-async function checkSession() {
-
-    const {
-        data
-    } =
-        await supabaseClient.auth
-            .getSession();
-
-
-    if (
-        data?.session?.user
-    ) {
-
-        currentUser =
-            data.session.user;
-
-    }
-
-}
-
-
-/* =========================================================
-   INITIALIZATION
-========================================================= */
-
-async function initialize() {
-
-    setupEvents();
-
-    setupAdminTabs();
-
-
-    await checkSession();
-
-
-    const savedLanguage =
-        localStorage.getItem(
-            "restaurant_language"
-        );
-
-
-    if (savedLanguage) {
-
-        currentLanguage =
-            savedLanguage;
-
-    }
-
-
-    await loadTranslations();
-
-    await loadSettings();
-
-    await loadCategories();
-
-    await loadProducts();
-
-
-    restoreCart();
-
-
-    subscribeToOrders();
-
-
-    checkAdminHash();
-
-
-    window.addEventListener(
-        "hashchange",
-        checkAdminHash
-    );
-
-
-    supabaseClient.auth
-        .onAuthStateChange(
-            async (
-                event,
-                session
-            ) => {
-
-                currentUser =
-                    session?.user
-                    || null;
-
-
-                checkAdminHash();
-
-            }
-        );
-
-}
-
-
-initialize();
+);
