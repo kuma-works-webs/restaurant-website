@@ -1,340 +1,1584 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="Restaurant website"
+    >
+
+    <meta
+        name="theme-color"
+        content="#d62828"
+    >
 
     <title>Restaurant</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
 </head>
+
 
 <body>
 
-    <!-- =========================
-         BACKGROUND
-    ========================== -->
+<!-- =====================================================
+     BACKGROUND
+===================================================== -->
 
-    <div id="background"></div>
-    <div class="overlay"></div>
+<div id="site-background">
 
+    <video
+        id="hero-video"
+        autoplay
+        muted
+        loop
+        playsinline
+    ></video>
 
-    <!-- =========================
-         NAVIGATION
-    ========================== -->
+    <div id="hero-image"></div>
 
-    <header>
+    <div id="hero-overlay"></div>
 
-        <div class="logo-container">
-            <img id="logo" src="" alt="Logo">
-            <span id="restaurant-name">Restaurant</span>
-        </div>
-
-        <nav>
-            <a href="#home" data-i18n="home">Accueil</a>
-            <a href="#menu" data-i18n="menu">Menu</a>
-            <a href="#contact" data-i18n="contact">Contact</a>
-        </nav>
-
-        <div class="languages">
-
-            <button onclick="changeLanguage('fr')">
-                FR
-            </button>
-
-            <button onclick="changeLanguage('ar')">
-                العربية
-            </button>
-
-            <button onclick="changeLanguage('en')">
-                EN
-            </button>
-
-        </div>
-
-    </header>
+</div>
 
 
-    <!-- =========================
-         HOME
-    ========================== -->
+<!-- =====================================================
+     NAVBAR
+===================================================== -->
 
-    <main>
+<header class="navbar">
 
-        <section id="home" class="hero">
+    <a
+        href="#home"
+        class="brand"
+    >
 
-            <div class="hero-content">
+        <img
+            id="brand-logo"
+            src=""
+            alt="Restaurant logo"
+        >
 
-                <h1 id="hero-title">
-                    Bienvenue
-                </h1>
+        <span id="brand-name">
+            Restaurant
+        </span>
 
-                <p id="hero-description">
-                    Découvrez notre menu.
-                </p>
-
-                <a href="#menu" class="main-button" data-i18n="viewMenu">
-                    Voir le menu
-                </a>
-
-            </div>
-
-        </section>
+    </a>
 
 
-        <!-- =========================
-             MENU
-        ========================== -->
+    <nav class="desktop-nav">
 
-        <section id="menu" class="section">
+        <a href="#home" data-i18n="home">
+            Accueil
+        </a>
 
-            <h2 data-i18n="ourMenu">
-                Notre Menu
-            </h2>
+        <a href="#menu" data-i18n="menu">
+            Menu
+        </a>
 
-            <div id="categories"></div>
+        <a href="#contact" data-i18n="contact">
+            Contact
+        </a>
 
-            <div id="products"></div>
-
-        </section>
+    </nav>
 
 
-        <!-- =========================
-             CART
-        ========================== -->
+    <div class="navbar-actions">
 
-        <section id="cart" class="section cart-section">
+        <button
+            class="language-button"
+            id="language-button"
+        >
+            FR
+        </button>
 
-            <h2 data-i18n="yourCart">
-                Votre panier
-            </h2>
 
-            <div id="cart-items"></div>
+        <button
+            class="cart-button"
+            id="open-cart-button"
+        >
 
-            <div class="cart-total">
+            🛒
 
-                <strong data-i18n="total">
-                    Total
-                </strong>
+            <span
+                id="cart-count"
+                class="cart-count"
+            >
+                0
+            </span>
 
-                <span id="cart-total">
-                    0 DH
+        </button>
+
+
+        <button
+            class="menu-button"
+            id="mobile-menu-button"
+        >
+            ☰
+        </button>
+
+    </div>
+
+</header>
+
+
+<!-- =====================================================
+     LANGUAGE MENU
+===================================================== -->
+
+<div
+    id="language-menu"
+    class="language-menu hidden"
+>
+
+    <button data-language="fr">
+        🇫🇷 Français
+    </button>
+
+    <button data-language="ar">
+        🇲🇦 العربية
+    </button>
+
+    <button data-language="en">
+        🇬🇧 English
+    </button>
+
+</div>
+
+
+<!-- =====================================================
+     MOBILE NAV
+===================================================== -->
+
+<div
+    id="mobile-nav"
+    class="mobile-nav hidden"
+>
+
+    <a
+        href="#home"
+        data-i18n="home"
+    >
+        Accueil
+    </a>
+
+    <a
+        href="#menu"
+        data-i18n="menu"
+    >
+        Menu
+    </a>
+
+    <a
+        href="#contact"
+        data-i18n="contact"
+    >
+        Contact
+    </a>
+
+</div>
+
+
+<!-- =====================================================
+     HERO
+===================================================== -->
+
+<main>
+
+<section
+    id="home"
+    class="hero"
+>
+
+    <div class="hero-content">
+
+        <img
+            id="hero-logo"
+            class="hero-logo"
+            src=""
+            alt=""
+        >
+
+        <h1 id="hero-title">
+            Bienvenue
+        </h1>
+
+        <p id="hero-description">
+            Découvrez notre menu.
+        </p>
+
+        <a
+            href="#menu"
+            class="primary-button"
+            data-i18n="view_menu"
+        >
+            Voir le menu
+        </a>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     MENU
+===================================================== -->
+
+<section
+    id="menu"
+    class="content-section"
+>
+
+    <div class="section-heading">
+
+        <span class="eyebrow">
+            🍽️
+        </span>
+
+        <h2 data-i18n="our_menu">
+            Notre menu
+        </h2>
+
+    </div>
+
+
+    <div
+        id="category-list"
+        class="category-list"
+    ></div>
+
+
+    <div
+        id="product-grid"
+        class="product-grid"
+    ></div>
+
+</section>
+
+
+<!-- =====================================================
+     CONTACT
+===================================================== -->
+
+<section
+    id="contact"
+    class="contact-section"
+>
+
+    <div class="section-heading">
+
+        <span class="eyebrow">
+            📍
+        </span>
+
+        <h2 data-i18n="contact_us">
+            Contactez-nous
+        </h2>
+
+    </div>
+
+
+    <div class="contact-card">
+
+        <p id="restaurant-address">
+            -
+        </p>
+
+
+        <div class="contact-actions">
+
+            <a
+                id="phone-link"
+                class="contact-button"
+                href="#"
+            >
+
+                📞
+
+                <span data-i18n="call">
+                    Appeler
                 </span>
 
-            </div>
+            </a>
+
+
+            <a
+                id="whatsapp-link"
+                class="contact-button"
+                href="#"
+                target="_blank"
+            >
+
+                💬
+
+                <span data-i18n="whatsapp">
+                    WhatsApp
+                </span>
+
+            </a>
+
+
+            <a
+                id="maps-link"
+                class="contact-button"
+                href="#"
+                target="_blank"
+            >
+
+                📍
+
+                <span data-i18n="location">
+                    Localisation
+                </span>
+
+            </a>
+
+        </div>
+
+
+        <div
+            id="social-links"
+            class="social-links"
+        ></div>
+
+    </div>
+
+</section>
+
+</main>
+
+
+<!-- =====================================================
+     CART DRAWER
+===================================================== -->
+
+<div
+    id="cart-overlay"
+    class="drawer-overlay hidden"
+></div>
+
+
+<aside
+    id="cart-drawer"
+    class="cart-drawer"
+>
+
+    <div class="drawer-header">
+
+        <h2 data-i18n="cart">
+            Panier
+        </h2>
+
+        <button id="close-cart">
+            ✕
+        </button>
+
+    </div>
+
+
+    <div
+        id="cart-items"
+        class="cart-items"
+    ></div>
+
+
+    <div class="cart-footer">
+
+        <div class="cart-total-row">
+
+            <span data-i18n="total">
+                Total
+            </span>
+
+            <strong id="cart-total">
+                0 DH
+            </strong>
+
+        </div>
+
+
+        <button
+            id="checkout-button"
+            class="primary-button full"
+            data-i18n="place_order"
+        >
+            Passer la commande
+        </button>
+
+    </div>
+
+</aside>
+
+
+<!-- =====================================================
+     CHECKOUT MODAL
+===================================================== -->
+
+<div
+    id="checkout-modal"
+    class="modal hidden"
+>
+
+    <div class="modal-box">
+
+        <button
+            class="modal-close"
+            id="close-checkout"
+        >
+            ✕
+        </button>
+
+
+        <h2 data-i18n="your_order">
+            Votre commande
+        </h2>
+
+
+        <form id="checkout-form">
+
+            <label data-i18n="name">
+                Nom
+            </label>
+
+            <input
+                id="customer-name"
+                required
+            >
+
+
+            <label data-i18n="phone">
+                Téléphone
+            </label>
+
+            <input
+                id="customer-phone"
+                type="tel"
+                required
+            >
+
+
+            <label data-i18n="address">
+                Adresse
+            </label>
+
+            <textarea
+                id="customer-address"
+                required
+            ></textarea>
+
+
+            <label>
+                Type de commande
+            </label>
+
+            <select id="order-type">
+
+                <option value="delivery">
+                    Livraison
+                </option>
+
+                <option value="pickup">
+                    À emporter
+                </option>
+
+            </select>
+
+
+            <label>
+                Paiement
+            </label>
+
+            <select id="payment-method">
+
+                <option value="cash">
+                    Cash
+                </option>
+
+                <option value="card">
+                    Carte
+                </option>
+
+            </select>
+
+
+            <label data-i18n="notes">
+                Notes
+            </label>
+
+            <textarea
+                id="customer-notes"
+            ></textarea>
+
 
             <button
-                class="main-button"
-                onclick="orderViaWhatsApp()"
-                data-i18n="order"
+                class="primary-button full"
+                type="submit"
+                data-i18n="place_order"
             >
-                Commander
+                Passer la commande
             </button>
 
-        </section>
+        </form>
+
+    </div>
+
+</div>
 
 
-        <!-- =========================
-             CONTACT
-        ========================== -->
+<!-- =====================================================
+     ADMIN LOGIN
+===================================================== -->
 
-        <section id="contact" class="section">
+<div
+    id="admin-login"
+    class="admin-screen hidden"
+>
 
-            <h2 data-i18n="contactUs">
-                Contactez-nous
-            </h2>
+    <div class="admin-login-box">
 
-            <p id="address"></p>
+        <button
+            id="admin-login-close"
+            class="modal-close"
+        >
+            ✕
+        </button>
 
-            <div class="contact-buttons">
 
-                <a id="call-button"
-                   class="main-button"
-                   href="#">
-                    📞 <span data-i18n="call">Appeler</span>
-                </a>
+        <div class="admin-icon">
+            🔐
+        </div>
 
-                <a id="whatsapp-button"
-                   class="main-button"
-                   href="#"
-                   target="_blank">
-                    💬 WhatsApp
-                </a>
 
-                <a id="maps-button"
-                   class="main-button"
-                   href="#"
-                   target="_blank">
-                    📍 <span data-i18n="location">Localisation</span>
-                </a>
+        <h2>
+            Admin
+        </h2>
+
+
+        <form id="login-form">
+
+            <input
+                id="admin-email"
+                type="email"
+                placeholder="Email"
+                required
+            >
+
+
+            <input
+                id="admin-password"
+                type="password"
+                placeholder="Password"
+                required
+            >
+
+
+            <button
+                class="primary-button full"
+                type="submit"
+            >
+                Login
+            </button>
+
+        </form>
+
+
+        <p
+            id="login-error"
+            class="error-message"
+        ></p>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     ADMIN PANEL
+===================================================== -->
+
+<div
+    id="admin-panel"
+    class="admin-screen hidden"
+>
+
+    <div class="admin-app">
+
+        <header class="admin-header">
+
+            <div>
+
+                <small>
+                    RESTAURANT ADMIN
+                </small>
+
+                <h1>
+                    Dashboard
+                </h1>
 
             </div>
 
-        </section>
 
-    </main>
+            <div class="admin-header-actions">
 
-
-    <!-- =========================
-         ADMIN
-    ========================== -->
-
-    <div id="admin-page" class="admin-page">
-
-        <div class="admin-box">
-
-            <button class="close-admin"
-                    onclick="closeAdmin()">
-                ✕
-            </button>
-
-            <h2>
-                Admin
-            </h2>
-
-            <div id="login-area">
-
-                <input
-                    id="email"
-                    type="email"
-                    placeholder="Email"
-                >
-
-                <input
-                    id="password"
-                    type="password"
-                    placeholder="Password"
-                >
-
-                <button onclick="login()">
-                    Login
+                <button id="view-site-button">
+                    🌐 Site
                 </button>
 
-            </div>
-
-
-            <div id="admin-panel">
-
-                <h3>Restaurant</h3>
-
-                <input
-                    id="admin-name"
-                    placeholder="Restaurant name"
-                >
-
-                <input
-                    id="admin-logo"
-                    placeholder="Logo URL"
-                >
-
-                <input
-                    id="admin-phone"
-                    placeholder="Phone number"
-                >
-
-                <input
-                    id="admin-whatsapp"
-                    placeholder="WhatsApp number"
-                >
-
-                <input
-                    id="admin-address"
-                    placeholder="Address"
-                >
-
-                <input
-                    id="admin-maps"
-                    placeholder="Google Maps URL"
-                >
-
-
-                <h3>Background</h3>
-
-                <input
-                    id="admin-background"
-                    placeholder="Background image URL"
-                >
-
-                <input
-                    id="admin-video"
-                    placeholder="Background video URL"
-                >
-
-
-                <h3>Text</h3>
-
-                <input
-                    id="admin-title-fr"
-                    placeholder="French title"
-                >
-
-                <input
-                    id="admin-title-en"
-                    placeholder="English title"
-                >
-
-                <input
-                    id="admin-title-ar"
-                    placeholder="Arabic title"
-                >
-
-                <textarea
-                    id="admin-description-fr"
-                    placeholder="French description">
-                </textarea>
-
-                <textarea
-                    id="admin-description-en"
-                    placeholder="English description">
-                </textarea>
-
-                <textarea
-                    id="admin-description-ar"
-                    placeholder="Arabic description">
-                </textarea>
-
-
-                <h3>Colors</h3>
-
-                <label>
-                    Main color
-                    <input
-                        id="admin-color"
-                        type="color"
-                    >
-                </label>
-
-
-                <button onclick="saveSettings()">
-                    💾 Save settings
-                </button>
-
-
-                <h3>Products</h3>
-
-                <div id="admin-products"></div>
-
-                <button onclick="addProduct()">
-                    ➕ Add product
-                </button>
-
-
-                <button
-                    class="logout"
-                    onclick="logout()">
+                <button id="logout-button">
                     Logout
                 </button>
 
             </div>
 
+        </header>
+
+
+        <div class="admin-layout">
+
+
+            <!-- SIDEBAR -->
+
+            <aside class="admin-sidebar">
+
+                <button
+                    class="admin-tab active"
+                    data-tab="dashboard"
+                >
+                    📊 Dashboard
+                </button>
+
+                <button
+                    class="admin-tab"
+                    data-tab="general"
+                >
+                    ⚙️ General
+                </button>
+
+                <button
+                    class="admin-tab"
+                    data-tab="design"
+                >
+                    🎨 Design
+                </button>
+
+                <button
+                    class="admin-tab"
+                    data-tab="menu-editor"
+                >
+                    🍔 Menu
+                </button>
+
+                <button
+                    class="admin-tab"
+                    data-tab="orders"
+                >
+                    📦 Orders
+                    <span
+                        id="admin-order-count"
+                        class="admin-badge"
+                    >
+                        0
+                    </span>
+                </button>
+
+            </aside>
+
+
+            <!-- CONTENT -->
+
+            <section class="admin-content">
+
+
+                <!-- DASHBOARD -->
+
+                <div
+                    class="admin-tab-content active"
+                    data-content="dashboard"
+                >
+
+                    <h2>
+                        Dashboard
+                    </h2>
+
+                    <div class="stats-grid">
+
+                        <div class="stat-card">
+
+                            <span>
+                                Products
+                            </span>
+
+                            <strong id="stat-products">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <span>
+                                Categories
+                            </span>
+
+                            <strong id="stat-categories">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <span>
+                                New orders
+                            </span>
+
+                            <strong id="stat-orders">
+                                0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- GENERAL -->
+
+                <div
+                    class="admin-tab-content"
+                    data-content="general"
+                >
+
+                    <h2>
+                        General settings
+                    </h2>
+
+
+                    <form id="general-form">
+
+                        <div class="form-grid">
+
+                            <div class="field">
+
+                                <label>
+                                    Restaurant name
+                                </label>
+
+                                <input
+                                    id="setting-name"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Phone
+                                </label>
+
+                                <input
+                                    id="setting-phone"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    WhatsApp
+                                </label>
+
+                                <input
+                                    id="setting-whatsapp"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Email
+                                </label>
+
+                                <input
+                                    id="setting-email"
+                                    type="email"
+                                >
+
+                            </div>
+
+
+                            <div class="field full-field">
+
+                                <label>
+                                    Address
+                                </label>
+
+                                <textarea
+                                    id="setting-address"
+                                ></textarea>
+
+                            </div>
+
+
+                            <div class="field full-field">
+
+                                <label>
+                                    Google Maps URL
+                                </label>
+
+                                <input
+                                    id="setting-maps"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Instagram
+                                </label>
+
+                                <input
+                                    id="setting-instagram"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Facebook
+                                </label>
+
+                                <input
+                                    id="setting-facebook"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    TikTok
+                                </label>
+
+                                <input
+                                    id="setting-tiktok"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Opening hours
+                                </label>
+
+                                <input
+                                    id="setting-hours"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            class="save-button"
+                            type="submit"
+                        >
+                            💾 Save
+                        </button>
+
+                    </form>
+
+                </div>
+
+
+                <!-- DESIGN -->
+
+                <div
+                    class="admin-tab-content"
+                    data-content="design"
+                >
+
+                    <h2>
+                        Design
+                    </h2>
+
+
+                    <form id="design-form">
+
+                        <div class="form-grid">
+
+                            <div class="field">
+
+                                <label>
+                                    Primary color
+                                </label>
+
+                                <input
+                                    id="design-primary"
+                                    type="color"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Secondary color
+                                </label>
+
+                                <input
+                                    id="design-secondary"
+                                    type="color"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Accent color
+                                </label>
+
+                                <input
+                                    id="design-accent"
+                                    type="color"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Border radius
+                                </label>
+
+                                <input
+                                    id="design-radius"
+                                    type="range"
+                                    min="0"
+                                    max="40"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Hero overlay
+                                </label>
+
+                                <input
+                                    id="design-overlay"
+                                    type="range"
+                                    min="0"
+                                    max="90"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Font
+                                </label>
+
+                                <select id="design-font">
+
+                                    <option value="Inter">
+                                        Inter
+                                    </option>
+
+                                    <option value="Arial">
+                                        Arial
+                                    </option>
+
+                                    <option value="Georgia">
+                                        Georgia
+                                    </option>
+
+                                    <option value="Poppins">
+                                        Poppins
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            <div class="field full-field">
+
+                                <label>
+                                    Hero background image
+                                </label>
+
+                                <input
+                                    id="design-image"
+                                >
+
+                            </div>
+
+
+                            <div class="field full-field">
+
+                                <label>
+                                    Hero background video
+                                </label>
+
+                                <input
+                                    id="design-video"
+                                >
+
+                            </div>
+
+
+                            <div class="field full-field">
+
+                                <label>
+                                    Logo URL
+                                </label>
+
+                                <input
+                                    id="design-logo"
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Theme
+                                </label>
+
+                                <select id="design-theme">
+
+                                    <option value="dark">
+                                        Dark
+                                    </option>
+
+                                    <option value="light">
+                                        Light
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            class="save-button"
+                            type="submit"
+                        >
+                            💾 Save design
+                        </button>
+
+                    </form>
+
+                </div>
+
+
+                <!-- MENU EDITOR -->
+
+                <div
+                    class="admin-tab-content"
+                    data-content="menu-editor"
+                >
+
+                    <div class="admin-section-header">
+
+                        <div>
+
+                            <h2>
+                                Menu
+                            </h2>
+
+                            <p>
+                                Manage categories and products.
+                            </p>
+
+                        </div>
+
+
+                        <button
+                            id="add-category-button"
+                            class="save-button"
+                        >
+                            + Category
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="admin-categories"
+                        class="admin-category-list"
+                    ></div>
+
+
+                    <div class="admin-section-header">
+
+                        <h2>
+                            Products
+                        </h2>
+
+                        <button
+                            id="add-product-button"
+                            class="save-button"
+                        >
+                            + Product
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="admin-products"
+                        class="admin-products-list"
+                    ></div>
+
+                </div>
+
+
+                <!-- ORDERS -->
+
+                <div
+                    class="admin-tab-content"
+                    data-content="orders"
+                >
+
+                    <div class="admin-section-header">
+
+                        <div>
+
+                            <h2>
+                                Orders
+                            </h2>
+
+                            <p>
+                                Manage incoming orders.
+                            </p>
+
+                        </div>
+
+
+                        <button
+                            id="refresh-orders"
+                            class="save-button"
+                        >
+                            ↻ Refresh
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="orders-list"
+                        class="orders-list"
+                    ></div>
+
+                </div>
+
+
+            </section>
+
         </div>
 
     </div>
 
+</div>
 
-    <!-- Firebase -->
 
-    <script type="module" src="app.js"></script>
+<!-- =====================================================
+     PRODUCT EDITOR
+===================================================== -->
+
+<div
+    id="product-editor"
+    class="modal hidden"
+>
+
+    <div class="modal-box large">
+
+        <button
+            id="close-product-editor"
+            class="modal-close"
+        >
+            ✕
+        </button>
+
+
+        <h2>
+            Product
+        </h2>
+
+
+        <form id="product-form">
+
+            <input
+                type="hidden"
+                id="product-id"
+            >
+
+
+            <label>
+                Category
+            </label>
+
+            <select id="product-category"></select>
+
+
+            <div class="form-grid">
+
+                <div class="field">
+
+                    <label>
+                        French name
+                    </label>
+
+                    <input
+                        id="product-fr"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Arabic name
+                    </label>
+
+                    <input
+                        id="product-ar"
+                        dir="rtl"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        English name
+                    </label>
+
+                    <input
+                        id="product-en"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Price DH
+                    </label>
+
+                    <input
+                        id="product-price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field full-field">
+
+                    <label>
+                        French description
+                    </label>
+
+                    <textarea
+                        id="product-description-fr"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="field full-field">
+
+                    <label>
+                        Arabic description
+                    </label>
+
+                    <textarea
+                        id="product-description-ar"
+                        dir="rtl"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="field full-field">
+
+                    <label>
+                        English description
+                    </label>
+
+                    <textarea
+                        id="product-description-en"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="field full-field">
+
+                    <label>
+                        Image
+                    </label>
+
+                    <input
+                        id="product-image-file"
+                        type="file"
+                        accept="image/*"
+                    >
+
+                    <input
+                        id="product-image-url"
+                        placeholder="Or paste image URL"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label class="checkbox">
+
+                        <input
+                            id="product-visible"
+                            type="checkbox"
+                            checked
+                        >
+
+                        Visible
+
+                    </label>
+
+                </div>
+
+
+                <div class="field">
+
+                    <label class="checkbox">
+
+                        <input
+                            id="product-available"
+                            type="checkbox"
+                            checked
+                        >
+
+                        Available
+
+                    </label>
+
+                </div>
+
+
+                <div class="field">
+
+                    <label class="checkbox">
+
+                        <input
+                            id="product-featured"
+                            type="checkbox"
+                        >
+
+                        Featured
+
+                    </label>
+
+                </div>
+
+            </div>
+
+
+            <button
+                class="save-button"
+                type="submit"
+            >
+                💾 Save product
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     CATEGORY EDITOR
+===================================================== -->
+
+<div
+    id="category-editor"
+    class="modal hidden"
+>
+
+    <div class="modal-box">
+
+        <button
+            id="close-category-editor"
+            class="modal-close"
+        >
+            ✕
+        </button>
+
+
+        <h2>
+            Category
+        </h2>
+
+
+        <form id="category-form">
+
+            <input
+                type="hidden"
+                id="category-id"
+            >
+
+
+            <label>
+                French
+            </label>
+
+            <input
+                id="category-fr"
+                required
+            >
+
+
+            <label>
+                Arabic
+            </label>
+
+            <input
+                id="category-ar"
+                dir="rtl"
+                required
+            >
+
+
+            <label>
+                English
+            </label>
+
+            <input
+                id="category-en"
+                required
+            >
+
+
+            <label>
+                Order
+            </label>
+
+            <input
+                id="category-order"
+                type="number"
+                value="0"
+            >
+
+
+            <label class="checkbox">
+
+                <input
+                    id="category-visible"
+                    type="checkbox"
+                    checked
+                >
+
+                Visible
+
+            </label>
+
+
+            <button
+                class="save-button"
+                type="submit"
+            >
+                💾 Save category
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     TOAST
+===================================================== -->
+
+<div
+    id="toast"
+    class="toast"
+></div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="app.js"></script>
 
 </body>
+
 </html>
